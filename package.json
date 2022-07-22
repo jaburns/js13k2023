@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "debug": "node build.js --debug",
-    "start": "node build.js"
+    "start": "node build.js",
+    "release": "node build.js --release"
   },
   "devDependencies": {
     "@rollup/plugin-replace": "3.0.0",

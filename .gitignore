@@ -2,3 +2,4 @@
 /build/
 /out.zip
 /src/shaders.gen.ts
+/shadersTmp/

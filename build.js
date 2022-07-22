@@ -7,6 +7,7 @@ const advzipPath = require('advzip-bin')
 const constantsJson = require('./src/constants.json')
 
 const DEBUG = process.argv.indexOf('--debug') >= 0
+const RELEASE = process.argv.indexOf('--release') >= 0
 const MONO_RUN = process.platform === 'win32' ? '' : 'mono ';
 
 const run = cmd => {
@@ -27,8 +28,7 @@ const applyConstants = code => {
     return code
 }
 
-const generateShaderFile = () =>
-{
+const generateShaderFile = () => {
     sh.mkdir('-p', 'shadersTmp')
     sh.ls('src').forEach(x => {
         if (x.endsWith('.frag') || x.endsWith('.vert')) {
@@ -38,12 +38,18 @@ const generateShaderFile = () =>
         }
     })
 
-    let noRenames = ['main', 'M']
-    for (let i = 0; i < 36; ++i) {
-        noRenames.push('M' + i.toString(36).toUpperCase())
+    let noRenames = ['main']
+
+    if (DEBUG) {
+        run(MONO_RUN + 'tools/shader_minifier.exe' +
+            ' --no-renaming' +
+            ' --format js -o build/shaders.js --preserve-externals shadersTmp/*')
+    } else {
+        run(MONO_RUN + 'tools/shader_minifier.exe' +
+            ' --no-renaming-list ' + noRenames.join(',') +
+            ' --format js -o build/shaders.js --preserve-externals shadersTmp/*')
     }
 
-    run(MONO_RUN + 'tools/shader_minifier.exe --no-renaming-list '+noRenames.join(',')+' --format js -o build/shaders.js --preserve-externals '+(DEBUG ? '--preserve-all-globals' : '')+' shadersTmp/*')
     let shaderCode = fs.readFileSync('build/shaders.js', 'utf8').replace(/\r/g, '')
 
     let shaderLines = shaderCode
@@ -103,7 +109,7 @@ const main = () => {
     run('tsc --outDir build')
 
     console.log('Rolling up bundle...')
-    run('rollup -c' + (DEBUG ? ' --config-debug' : ''))
+    run('rollup -c' + (DEBUG ? ' --config-debug' : RELEASE ? ' --config-release' : ''))
 
     let x = fs.readFileSync('build/bundle.js', 'utf8');
     if (!DEBUG) x = hashIdentifiers(x, true)
@@ -115,7 +121,7 @@ const main = () => {
     x = applyConstants(x)
     x = 'G=C0.getContext`webgl`;' + x
 
-    if (!DEBUG) {
+    if (RELEASE) {
         fs.writeFileSync('/tmp/aaa.js', x)
         run('roadroller -D -O2 -o /tmp/bbb.js /tmp/aaa.js')
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')
