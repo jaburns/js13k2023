@@ -4,7 +4,7 @@ import { main_vert, main_frag } from './shaders.gen';
 import { sndOllie, zzfxP } from './zzfx';
 
 declare const DEBUG: boolean;
-declare const C0: HTMLCanvasElement
+declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 
 const TICK_MILLIS = 33
@@ -20,12 +20,12 @@ let setStyle = (elem: HTMLElement): void => {
 }
 
 setStyle(document.body)
-setStyle(C0)
+setStyle(CC)
 
 window.onresize = () => {
     let w = window.innerWidth, h = window.innerHeight
-    C0.width = w
-    C0.height = h
+    CC.width = w
+    CC.height = h
     G.viewport(0, 0, w, h)
 }
 

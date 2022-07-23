@@ -7,8 +7,18 @@ const advzipPath = require('advzip-bin')
 const constantsJson = require('./src/constants.json')
 
 const DEBUG = process.argv.indexOf('--debug') >= 0
-const RELEASE = process.argv.indexOf('--release') >= 0
 const MONO_RUN = process.platform === 'win32' ? '' : 'mono ';
+
+const CLOSURE_COMPILER_EXTERNS = `
+/**
+ * @type {!HTMLCanvasElement}
+ */
+var CC;
+/**
+ * @type {!WebGLRenderingContext}
+ */
+var G;
+`
 
 const run = cmd => {
     const code = sh.exec(cmd).code
@@ -68,7 +78,7 @@ const generateShaderFile = () => {
 };
 
 const hashIdentifiers = js => {
-    const varsNotReassigned = ['C0','G']
+    const varsNotReassigned = ['CC','G']
 
     js = new ShapeShifter().preprocess(js, {
         hashWebGLContext: true,
@@ -109,19 +119,30 @@ const main = () => {
     run('tsc --outDir build')
 
     console.log('Rolling up bundle...')
-    run('rollup -c' + (DEBUG ? ' --config-debug' : RELEASE ? ' --config-release' : ''))
+    run('rollup -c' + (DEBUG ? ' --config-debug' : ''))
 
-    let x = fs.readFileSync('build/bundle.js', 'utf8');
-    if (!DEBUG) x = hashIdentifiers(x, true)
+    let x;
 
-    if (!DEBUG && x.indexOf('const ') > 0) {
-        console.warn('\n    WARNING: "const" appears in packed JS\n')
+    if (!DEBUG) {
+        sh.cd('build')
+        console.log('Applying closure compiler...')
+        fs.writeFileSync('externs.js', CLOSURE_COMPILER_EXTERNS)
+        run('google-closure-compiler -O ADVANCED bundle.js --js_output_file bundle2.js --externs externs.js')
+
+        console.log('Applying terser...')
+        run('terser --ecma 2020 --mangle reserved=[CC,G] --mangle_props keep_quoted --compress passes=10,keep_fargs=false,pure_getters=true,unsafe=true,unsafe_arrows=true,unsafe_comps=true,unsafe_math=true,unsafe_methods=true,unsafe_symbols=true --format quote_style=1 --output bundle3.js bundle2.js')
+        sh.cd('..')
+
+        x = fs.readFileSync('build/bundle3.js', 'utf8');
+        x = hashIdentifiers(x, true)
+    } else {
+        x = fs.readFileSync('build/bundle.js', 'utf8');
     }
 
     x = applyConstants(x)
-    x = 'G=C0.getContext`webgl`;' + x
+    x = 'G=CC.getContext`webgl`;' + x
 
-    if (RELEASE) {
+    if (!DEBUG) {
         fs.writeFileSync('/tmp/aaa.js', x)
         run('roadroller -D -O2 -o /tmp/bbb.js /tmp/aaa.js')
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')

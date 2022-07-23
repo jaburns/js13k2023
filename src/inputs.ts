@@ -1,7 +1,7 @@
 import { Bool } from "./global";
 
-declare const C0: HTMLCanvasElement
-declare const RELEASE: boolean;
+declare const CC: HTMLCanvasElement
+declare const DEBUG: boolean;
 
 export interface InputsFrame {
     mouseAccX: number
@@ -43,8 +43,8 @@ if ((window as any).onpointerrawupdate !== undefined) {
 }
 
 document.onmousedown = (e: MouseEvent) => {
-    if (document.pointerLockElement !== C0) {
-        C0.requestPointerLock()
+    if (document.pointerLockElement !== CC) {
+        CC.requestPointerLock()
     } else {
         frame.keysDown['_'+e.button] = Bool.True
     }
@@ -55,13 +55,13 @@ document.onmouseup = (e: MouseEvent) => {
 }
 
 document.onkeydown = (e: KeyboardEvent) => {
-    if (RELEASE) {
-        frame.keysDown[e.code] = 1
-        return false
-    } else {
+    if (DEBUG) {
         if (e.repeat) return false
         frame.keysDown[e.code] = 1
         return !e.code.startsWith('Arrow') && e.code !== 'Space' && e.code !== 'Tab'
+    } else {
+        frame.keysDown[e.code] = 1
+        return false
     }
 }
 
@@ -70,7 +70,7 @@ document.onkeyup = (e: KeyboardEvent) => {
 }
 
 export let inputsConsumeFrame = (): InputsFrame => {
-    if (document.pointerLockElement === C0) {
+    if (document.pointerLockElement === CC) {
         let outFrame = frame
         frame = newInputsFrame()
         for (let k in outFrame.keysDown) {
