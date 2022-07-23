@@ -142,11 +142,11 @@ const main = () => {
     x = applyConstants(x)
     x = 'G=CC.getContext`webgl`;' + x
 
-    if (!DEBUG) {
-        fs.writeFileSync('/tmp/aaa.js', x)
-        run('roadroller -D -O2 -o /tmp/bbb.js /tmp/aaa.js')
-        x = fs.readFileSync('/tmp/bbb.js', 'utf8')
-    }
+    //if (!DEBUG) {
+    //    fs.writeFileSync('/tmp/aaa.js', x)
+    //    run('roadroller -D -O2 -o /tmp/bbb.js /tmp/aaa.js')
+    //    x = fs.readFileSync('/tmp/bbb.js', 'utf8')
+    //}
 
     x = wrapWithHTML(x)
 

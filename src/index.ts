@@ -1,3 +1,4 @@
+import {csgSolidCube, csgSolidOpUnion} from './csg';
 import { gl_COLOR_BUFFER_BIT, gl_FRAGMENT_SHADER, gl_VERTEX_SHADER } from './glConsts'
 import {inputsConsumeFrame} from './inputs';
 import { main_vert, main_frag } from './shaders.gen';
@@ -76,12 +77,18 @@ let frame = () => {
     G.clearColor(0,1,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
 
-    console.log(JSON.stringify(inputsConsumeFrame()))
 
     if (Math.random() < 0.01) {
+        console.log(JSON.stringify(inputsConsumeFrame()))
         zzfxP(sndOllie)
     }
 }
 
+let mesh0 = csgSolidCube([0,0,0], [1,1,1])
+let mesh1 = csgSolidCube([1,1,1], [1,1,1])
+let mesh = csgSolidOpUnion(mesh0, mesh1)
+
 console.log(compileShader(main_vert, main_frag))
+console.log(JSON.stringify(mesh))
+
 frame()

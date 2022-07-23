@@ -1,3 +1,256 @@
+import { v3Negate, Vec3, Null, v3Dot, v3MulAdd, v3Cross, v3Sub, v3Normalize, v3Lerp } from "./global"
+
+const CSG_PLANE_EPSILON = 1e-5
+
+// ----------------------------------------------------------------------------
+
+type CsgVertex = Readonly<{
+    pos: Vec3,
+    normal: Vec3,
+}>
+
+let csgVertexFlip = (self: CsgVertex): CsgVertex => ({
+    pos: self.pos,
+    normal: v3Negate(self.normal)
+})
+
+// ----------------------------------------------------------------------------
+
+type CsgPolygon = Readonly<{
+    vertices: ReadonlyArray<CsgVertex>
+    plane: CsgPlane,
+}>
+
+let csgPolygonNew = (verts: CsgVertex[]): CsgPolygon => ({
+    vertices: verts,
+    plane: csgPlaneFromPoints(verts[0].pos, verts[1].pos, verts[2].pos),
+})
+
+let csgPolygonFlip = (self: CsgPolygon): CsgPolygon => ({
+    vertices: self.vertices.map(csgVertexFlip).reverse(),
+    plane: csgPlaneFlip(self.plane),
+})
+
+// ----------------------------------------------------------------------------
+
+type CsgPlane = Readonly<{
+    normal: Vec3,
+    w: number,
+}>
+
+let csgPlaneFromPoints = (a: Vec3, b: Vec3, c: Vec3): CsgPlane => {
+    let n = v3Normalize(v3Cross(v3Sub(b, a), v3Sub(c, a)))
+    return {
+        normal: n,
+        w: v3Dot(n, a)
+    }
+}
+
+let csgPlaneFlip = (self: CsgPlane): CsgPlane => ({
+    normal: v3Negate(self.normal),
+    w: -self.w,
+})
+
+const enum PolygonType {
+    COPLANAR = 0,
+    FRONT = 1,
+    BACK = 2,
+    SPANNING = 3,
+}
+
+let csgPlaneSplitPolygon = (
+    self: CsgPlane,
+    polygon: CsgPolygon,
+    coplanarFront: CsgPolygon[],
+    coplanarBack: CsgPolygon[],
+    front: CsgPolygon[],
+    back: CsgPolygon[],
+): void => {
+    let polygonType = 0
+
+    let types: PolygonType[] = polygon.vertices.map(vert => {
+        let t = v3Dot(self.normal, vert.pos) - self.w
+        let typ =
+            t < -CSG_PLANE_EPSILON ? PolygonType.BACK
+            : t > CSG_PLANE_EPSILON ? PolygonType.FRONT
+            : PolygonType.COPLANAR
+        polygonType |= typ
+        return typ
+    })
+
+    if (polygonType == PolygonType.COPLANAR) {
+        (v3Dot(self.normal, polygon.plane.normal) > 0 ? coplanarFront : coplanarBack).push(polygon)
+    }
+    if (polygonType == PolygonType.FRONT) {
+        front.push(polygon)
+    }
+    if (polygonType == PolygonType.BACK) {
+        back.push(polygon)
+    }
+    if (polygonType == PolygonType.SPANNING) {
+        let f: CsgVertex[] = [], b: CsgVertex[] = []
+        for (let i = 0; i < polygon.vertices.length; i++) {
+            let j = (i + 1) % polygon.vertices.length
+            let ti = types[i], tj = types[j]
+            let vi = polygon.vertices[i], vj = polygon.vertices[j]
+            if (ti != PolygonType.BACK) f.push(vi)
+            if (ti != PolygonType.FRONT) b.push(vi)
+            if ((ti | tj) == PolygonType.SPANNING) {
+                let t = (self.w - v3Dot(self.normal, vi.pos)) / v3Dot(self.normal, v3Sub(vj.pos, vi.pos))
+                let v: CsgVertex = {
+                    pos: v3Lerp(vi.pos, vj.pos, t),
+                    normal: v3Normalize(v3Lerp(vi.normal, vj.normal, t)),
+                }
+                f.push(v)
+                b.push(v)
+            }
+        }
+        if (f.length >= 3) front.push(csgPolygonNew(f))
+        if (b.length >= 3) back.push(csgPolygonNew(b))
+    }
+}
+// ----------------------------------------------------------------------------
+
+type CsgNode = {
+    plane: CsgPlane | Null,
+    front: CsgNode | Null,
+    back: CsgNode | Null,
+    polygons: CsgPolygon[],
+}
+
+let csgNodeNew = (): CsgNode => ({
+    plane: Null,
+    front: Null,
+    back: Null,
+    polygons: [],
+})
+
+let csgNodeInvert = (self: CsgNode): void => {
+    self.polygons = self.polygons.map(csgPolygonFlip)
+    self.plane = csgPlaneFlip(self.plane as CsgPlane) // assume not null
+    if (self.front) csgNodeInvert(self.front)
+    if (self.back) csgNodeInvert(self.back)
+    let swap = self.front
+    self.front = self.back
+    self.back = swap
+}
+
+let csgNodeClipPolygons = (self: CsgNode, polygons: CsgPolygon[]): CsgPolygon[] => {
+    if (!self.plane) {
+        return [...self.polygons]
+    }
+
+    let front: CsgPolygon[] = []
+    let back: CsgPolygon[] = []
+
+    for (var i = 0; i < polygons.length; i++) {
+        csgPlaneSplitPolygon(self.plane, polygons[i], front, back, front, back)
+    }
+
+    if (self.front) {
+        front = csgNodeClipPolygons(self.front, front)
+    }
+    back = self.back
+        ? csgNodeClipPolygons(self.back, back)
+        : []
+
+    return [...front, ...back]
+}
+
+let csgNodeClipTo = (self: CsgNode, bsp: CsgNode): void => {
+    self.polygons = csgNodeClipPolygons(bsp, self.polygons)
+    if (self.front) csgNodeClipTo(self.front, bsp)
+    if (self.back) csgNodeClipTo(self.back, bsp)
+}
+
+let csgNodeAllPolygons = (self: CsgNode): CsgPolygon[] => [
+    ...self.polygons,
+    ...(self.front ? csgNodeAllPolygons(self.front) : []),
+    ...(self.back ? csgNodeAllPolygons(self.back) : []),
+]
+
+let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
+    if (polygons.length) {
+        if (!self.plane) {
+            self.plane = polygons[0].plane
+        }
+
+        let front: CsgPolygon[] = []
+        let back: CsgPolygon[] = []
+
+        for (let i = 0; i < polygons.length; i++) {
+            csgPlaneSplitPolygon(self.plane, polygons[i], self.polygons, self.polygons, front, back)
+        }
+        if (front.length) {
+            if (!self.front) {
+                self.front = csgNodeNew()
+            }
+            csgNodeBuild(self.front, front)
+        }
+        if (back.length) {
+            if (!self.back) {
+                self.back = csgNodeNew()
+            }
+            csgNodeBuild(self.back, back)
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+
+export type CsgSolid = CsgPolygon[]
+
+export let csgSolidOpUnion = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
+    let a = csgNodeNew(), b = csgNodeNew()
+    csgNodeBuild(a, solidA)
+    csgNodeBuild(b, solidB)
+    csgNodeClipTo(a, b)
+    csgNodeClipTo(b, a)
+    csgNodeInvert(b)
+    csgNodeClipTo(b, a)
+    csgNodeInvert(b)
+    csgNodeBuild(a, csgNodeAllPolygons(b))
+    return csgNodeAllPolygons(a)
+}
+
+export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
+    let a = csgNodeNew(), b = csgNodeNew()
+    csgNodeBuild(a, solidA)
+    csgNodeBuild(b, solidB)
+    csgNodeInvert(a)
+    csgNodeClipTo(a, b)
+    csgNodeClipTo(b, a)
+    csgNodeInvert(b)
+    csgNodeClipTo(b, a)
+    csgNodeInvert(b)
+    csgNodeBuild(a, csgNodeAllPolygons(b))
+    csgNodeInvert(a)
+    return csgNodeAllPolygons(a)
+}
+
+export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid =>
+    [
+        [[0, 4, 6, 2], [-1, 0, 0]],
+        [[1, 3, 7, 5], [+1, 0, 0]],
+        [[0, 1, 5, 4], [0, -1, 0]],
+        [[2, 6, 7, 3], [0, +1, 0]],
+        [[0, 2, 3, 1], [0, 0, -1]],
+        [[4, 5, 7, 6], [0, 0, +1]]
+    ].map(info => csgPolygonNew(
+        info[0].map(i => {
+            let p: Vec3 = [
+                center[0] + radius[0] * (2 * ~~!!(i & 1) - 1),
+                center[1] + radius[1] * (2 * ~~!!(i & 2) - 1),
+                center[2] + radius[2] * (2 * ~~!!(i & 4) - 1)
+            ];
+            let ret: CsgVertex = {
+                pos: p,
+                normal: info[1] as any as Vec3,
+            }
+            return ret
+        })
+    ))
+
 /*
 
 SDF

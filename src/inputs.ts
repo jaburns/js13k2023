@@ -1,4 +1,4 @@
-import { Bool } from "./global";
+import { Bool, False, True } from "./global";
 
 declare const CC: HTMLCanvasElement
 declare const DEBUG: boolean;
@@ -46,12 +46,12 @@ document.onmousedown = (e: MouseEvent) => {
     if (document.pointerLockElement !== CC) {
         CC.requestPointerLock()
     } else {
-        frame.keysDown['_'+e.button] = Bool.True
+        frame.keysDown['_'+e.button] = True
     }
 }
 
 document.onmouseup = (e: MouseEvent) => {
-    frame.keysDown['_'+e.button] = Bool.False
+    frame.keysDown['_'+e.button] = False
 }
 
 document.onkeydown = (e: KeyboardEvent) => {
