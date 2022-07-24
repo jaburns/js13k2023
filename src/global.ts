@@ -9,11 +9,20 @@ export let lerp = (a: number, b: number, t: number): number => a + t*(b-a)
 
 export type Vec3 = Readonly<[number, number, number]>
 
+let v3Lift1 = (fn: (n: number) => number): (v: Vec3) => Vec3 => (v: Vec3): Vec3 =>
+    v.map(fn) as any as Vec3
+let v3Lift2 = (fn: (m: number, n: number) => number): (u: Vec3, v: Vec3) => Vec3 => (u: Vec3, v: Vec3): Vec3 =>
+    u.map((x,i)=>fn(x,v[i])) as any as Vec3
+
 export let v3Negate = ([x,y,z]: Vec3): Vec3 => [-x, -y, -z]
 export let v3Add = ([x,y,z]: Vec3, [a,b,c]: Vec3): Vec3 => [x+a,y+b,z+c]
 export let v3Sub = ([x,y,z]: Vec3, [a,b,c]: Vec3): Vec3 => [x-a,y-b,z-c]
 export let v3Mul = ([x,y,z]: Vec3, s: number): Vec3 => [x*s,y*s,z*s]
 export let v3Div = ([x,y,z]: Vec3, s: number): Vec3 => [x/s,y/s,z/s]
+
+export let v3Abs = v3Lift1(Math.abs)
+export let v3Max = v3Lift2(Math.max)
+export let v3Min = v3Lift2(Math.min)
 
 export let v3MulAdd = (a: Vec3, b: Vec3, s: number): Vec3 => a.map((x,i)=>x+s*b[i]) as any as Vec3;
 export let v3Lerp = (a: Vec3, b: Vec3, t: number): Vec3 => a.map((x,i)=>lerp(x,b[i],t)) as any as Vec3;

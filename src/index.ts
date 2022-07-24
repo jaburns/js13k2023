@@ -1,10 +1,10 @@
-import {csgSolidCube, csgSolidOpUnion} from './csg';
-import { gl_COLOR_BUFFER_BIT, gl_FRAGMENT_SHADER, gl_VERTEX_SHADER } from './glConsts'
+import { csgSolidBake, csgSolidCube, csgSolidOpSubtract } from './csg';
+import { gl_COLOR_BUFFER_BIT } from './glConsts'
 import {inputsConsumeFrame} from './inputs';
+import {shaderCompile} from './render';
 import { main_vert, main_frag } from './shaders.gen';
 import { sndOllie, zzfxP } from './zzfx';
 
-declare const DEBUG: boolean;
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 
@@ -33,34 +33,6 @@ window.onresize = () => {
 let accTime = 0
 let prevNow = 0
 
-let compileShader = (vert: string, frag: string): WebGLProgram => {
-    let vs = G.createShader(gl_VERTEX_SHADER)!
-    let fs = G.createShader(gl_FRAGMENT_SHADER)!
-    let shader = G.createProgram()!
-
-    G.shaderSource(vs, vert)
-    G.compileShader(vs)
-    G.shaderSource(fs, frag)
-    G.compileShader(fs)
-
-    if (DEBUG) {
-        let log = G.getShaderInfoLog(fs)
-        if (log === null || log.length > 0) {
-            console.log('Shader info log:\n' + log)
-            if (log !== null && log.indexOf('ERROR') >= 0) {
-                console.error(frag.split('\n').map((x,i) => `${i+1}: ${x}`).join('\n'));
-            }
-        }
-    }
-
-    G.attachShader(shader, vs)
-    G.attachShader(shader, fs)
-    G.linkProgram(shader)
-    G.deleteShader(fs)
-    G.deleteShader(vs)
-    return shader;
-};
-
 let frame = () => {
     requestAnimationFrame(frame)
 
@@ -77,7 +49,6 @@ let frame = () => {
     G.clearColor(0,1,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
 
-
     if (Math.random() < 0.01) {
         console.log(JSON.stringify(inputsConsumeFrame()))
         zzfxP(sndOllie)
@@ -86,9 +57,19 @@ let frame = () => {
 
 let mesh0 = csgSolidCube([0,0,0], [1,1,1])
 let mesh1 = csgSolidCube([1,1,1], [1,1,1])
-let mesh = csgSolidOpUnion(mesh0, mesh1)
+let [vert, idx, sdfFn] = csgSolidBake(csgSolidOpSubtract(mesh0, mesh1))
 
-console.log(compileShader(main_vert, main_frag))
-console.log(JSON.stringify(mesh))
+let objFileLines = []
+for(let i = 0; i < vert.length; i += 3) {
+    objFileLines.push(`v ${vert[i]} ${vert[i+1]} ${vert[i+2]}`)
+}
+for(let i = 0; i < idx.length; i += 3) {
+    objFileLines.push(`f ${idx[i]+1} ${idx[i+1]+1} ${idx[i+2]+1}`)
+}
+
+console.log(shaderCompile(main_vert, main_frag))
+console.log(objFileLines.join('\n'))
+console.log('XXX', sdfFn([1,1,1]), sdfFn([.01,.01,.01]))
+
 
 frame()

@@ -1,55 +1,24 @@
-import { v3Negate, Vec3, Null, v3Dot, v3MulAdd, v3Cross, v3Sub, v3Normalize, v3Lerp } from "./global"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, v3Lerp, v3Max, v3Length, v3Abs, v3Min } from "./global"
 
 const CSG_PLANE_EPSILON = 1e-5
 
-// ----------------------------------------------------------------------------
+let v3Scratch: Vec3
+let v3Zero: Vec3 = [0,0,0]
 
 type CsgVertex = Readonly<{
     pos: Vec3,
     normal: Vec3,
 }>
 
-let csgVertexFlip = (self: CsgVertex): CsgVertex => ({
-    pos: self.pos,
-    normal: v3Negate(self.normal)
-})
-
-// ----------------------------------------------------------------------------
-
 type CsgPolygon = Readonly<{
     vertices: ReadonlyArray<CsgVertex>
     plane: CsgPlane,
 }>
 
-let csgPolygonNew = (verts: CsgVertex[]): CsgPolygon => ({
-    vertices: verts,
-    plane: csgPlaneFromPoints(verts[0].pos, verts[1].pos, verts[2].pos),
-})
-
-let csgPolygonFlip = (self: CsgPolygon): CsgPolygon => ({
-    vertices: self.vertices.map(csgVertexFlip).reverse(),
-    plane: csgPlaneFlip(self.plane),
-})
-
-// ----------------------------------------------------------------------------
-
 type CsgPlane = Readonly<{
     normal: Vec3,
     w: number,
 }>
-
-let csgPlaneFromPoints = (a: Vec3, b: Vec3, c: Vec3): CsgPlane => {
-    let n = v3Normalize(v3Cross(v3Sub(b, a), v3Sub(c, a)))
-    return {
-        normal: n,
-        w: v3Dot(n, a)
-    }
-}
-
-let csgPlaneFlip = (self: CsgPlane): CsgPlane => ({
-    normal: v3Negate(self.normal),
-    w: -self.w,
-})
 
 const enum PolygonType {
     COPLANAR = 0,
@@ -57,6 +26,19 @@ const enum PolygonType {
     BACK = 2,
     SPANNING = 3,
 }
+
+let csgPolygonNew = (verts: CsgVertex[]): CsgPolygon => (
+    v3Scratch = v3Normalize(v3Cross(v3Sub(verts[1].pos, verts[0].pos), v3Sub(verts[2].pos, verts[0].pos))),
+    {
+        vertices: verts,
+        plane: { normal: v3Scratch, w: v3Dot(v3Scratch, verts[0].pos) }
+    }
+)
+
+let csgPlaneFlip = (self: CsgPlane): CsgPlane => ({
+    normal: v3Negate(self.normal),
+    w: -self.w,
+})
 
 let csgPlaneSplitPolygon = (
     self: CsgPlane,
@@ -109,6 +91,7 @@ let csgPlaneSplitPolygon = (
         if (b.length >= 3) back.push(csgPolygonNew(b))
     }
 }
+
 // ----------------------------------------------------------------------------
 
 type CsgNode = {
@@ -126,7 +109,10 @@ let csgNodeNew = (): CsgNode => ({
 })
 
 let csgNodeInvert = (self: CsgNode): void => {
-    self.polygons = self.polygons.map(csgPolygonFlip)
+    self.polygons = self.polygons.map(poly => ({
+        vertices: poly.vertices.map(v => ({ pos: v.pos, normal: v3Negate(v.normal) })).reverse(),
+        plane: csgPlaneFlip(poly.plane),
+    }))
     self.plane = csgPlaneFlip(self.plane as CsgPlane) // assume not null
     if (self.front) csgNodeInvert(self.front)
     if (self.back) csgNodeInvert(self.back)
@@ -143,9 +129,9 @@ let csgNodeClipPolygons = (self: CsgNode, polygons: CsgPolygon[]): CsgPolygon[] 
     let front: CsgPolygon[] = []
     let back: CsgPolygon[] = []
 
-    for (var i = 0; i < polygons.length; i++) {
-        csgPlaneSplitPolygon(self.plane, polygons[i], front, back, front, back)
-    }
+    polygons.map(poly =>
+        csgPlaneSplitPolygon(self.plane as CsgPlane, poly, front, back, front, back)
+    )
 
     if (self.front) {
         front = csgNodeClipPolygons(self.front, front)
@@ -178,9 +164,9 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
         let front: CsgPolygon[] = []
         let back: CsgPolygon[] = []
 
-        for (let i = 0; i < polygons.length; i++) {
-            csgPlaneSplitPolygon(self.plane, polygons[i], self.polygons, self.polygons, front, back)
-        }
+        polygons.map(poly =>
+            csgPlaneSplitPolygon(self.plane as CsgPlane, poly, self.polygons, self.polygons, front, back)
+        )
         if (front.length) {
             if (!self.front) {
                 self.front = csgNodeNew()
@@ -198,25 +184,36 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
 
 // ----------------------------------------------------------------------------
 
-export type CsgSolid = CsgPolygon[]
+const F_UNION     = 'a'
+const F_SUBTRACT  = 'b'
+const F_CUBE      = 'c'
+const V_POSITION  = 'd'
+
+export type CsgSolid = {
+    polys: CsgPolygon[],
+    sdf: string
+}
 
 export let csgSolidOpUnion = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
     let a = csgNodeNew(), b = csgNodeNew()
-    csgNodeBuild(a, solidA)
-    csgNodeBuild(b, solidB)
+    csgNodeBuild(a, solidA.polys)
+    csgNodeBuild(b, solidB.polys)
     csgNodeClipTo(a, b)
     csgNodeClipTo(b, a)
     csgNodeInvert(b)
     csgNodeClipTo(b, a)
     csgNodeInvert(b)
     csgNodeBuild(a, csgNodeAllPolygons(b))
-    return csgNodeAllPolygons(a)
+    return {
+        polys: csgNodeAllPolygons(a),
+        sdf: `${F_UNION}(${solidA.sdf},${solidB.sdf})`,
+    }
 }
 
 export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
     let a = csgNodeNew(), b = csgNodeNew()
-    csgNodeBuild(a, solidA)
-    csgNodeBuild(b, solidB)
+    csgNodeBuild(a, solidA.polys)
+    csgNodeBuild(b, solidB.polys)
     csgNodeInvert(a)
     csgNodeClipTo(a, b)
     csgNodeClipTo(b, a)
@@ -225,11 +222,14 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     csgNodeInvert(b)
     csgNodeBuild(a, csgNodeAllPolygons(b))
     csgNodeInvert(a)
-    return csgNodeAllPolygons(a)
+    return {
+        polys: csgNodeAllPolygons(a),
+        sdf: `${F_SUBTRACT}(${solidA.sdf},${solidB.sdf})`,
+    }
 }
 
-export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid =>
-    [
+export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => ({
+    polys: [
         [[0, 4, 6, 2], [-1, 0, 0]],
         [[1, 3, 7, 5], [+1, 0, 0]],
         [[0, 1, 5, 4], [0, -1, 0]],
@@ -249,140 +249,52 @@ export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid =>
             }
             return ret
         })
-    ))
+    )),
+    sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
+})
+
+let sdfUnion = (a: number, b: number): number =>
+    Math.max(Math.min(a,b),0)-Math.hypot(Math.min(a,0),Math.min(b,0))
+
+let sdfSubtract = (a: number, b: number): number =>
+    Math.min(Math.max(a,-b),0)+Math.hypot(Math.max(a,0),Math.max(-b,0))
+
+let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
+    v3Scratch = v3Sub(v3Abs(v3Sub(p, center)), radius),
+    v3Length(v3Max(v3Scratch, v3Zero)) + Math.min(Math.max(...v3Scratch), 0)
+)
+
+export type SdfFunction = (pos: Vec3) => number
+
+export let csgSolidBake = (self: CsgSolid): [number[], number[], SdfFunction] => {
+    let vertexBuf: number[] = []
+    let indexBuf: number[] = []
+    let innerSdfFunc = new Function(
+        `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE}`,
+        'return ' + self.sdf
+    )
+    let sdfFunc = (x: Vec3): number => innerSdfFunc(x, sdfUnion, sdfSubtract, sdfCube)
+
+    self.polys.map(poly => {
+        let startIdx = vertexBuf.length / 3
+        poly.vertices.map(x => vertexBuf.push(...x.pos))
+        for (let i = 2; i < poly.vertices.length; i++) {
+            indexBuf.push(startIdx, startIdx+i-1, startIdx+i)
+        }
+    })
+
+    return [vertexBuf, indexBuf, sdfFunc]
+}
 
 /*
-
 SDF
 
+// a, b positive in air signed distances
 float union_(float a, float b) {
     return max(min(a, b), 0.) - length(min(vec2(a, b), vec2(0,0)));
 }
 float subtract(float a, float b) {
     return min(max(a, -b), 0.) + length(max(vec2(a, -b), vec2(0)));
 }
-
-
-mapDef
-
-
-    (def intersect)
-    (def union)
-    (def subtract)
-
-    (def cube     radius x y z scalex scaley scalez rotx roty rotz)
-    (def sphere   radius x y z)
-    (def spheroid scalex scaley scalez rotx roty rotz)
-    (def capsule  radius0 radius1 x0 y0 z0 x1 y1 z1
-
-
-
-
-    (cube 0 23 25 93 0 0 0 1 1 1)
-    (intersect)
-    (cube 0 23 25 93 0 0 0 1 1 1)
-    (intersect)
-    (cube 0 23 25 93 0 0 0 1 1 1)
-    (subtract)
-    (cube 0 23 25 93 0 0 0 1 1 1)
-
-
-
-    (intersection
-        (cube 23 25 93 0 0 0 1 1 1)
-        (cube 23 25 93 0 0 0 1 1 1)
-
-
-    (intersection
-        (cube 23 25 93 0 0 0 1 1 1)
-        (cube 23 25 93 0 0 0 1 1 1)
-
-
-
-
-
-
-
-
-
-#define EPSILON 0.01
-
-float union_(float a, float b) {
-    return max(min(a, b), 0.) - length(min(vec2(a, b), vec2(0,0)));
-}
-float subtract(float a, float b) {
-    return min(max(a, -b), 0.) + length(max(vec2(a, -b), vec2(0)));
-}
-
-float sdf0(vec3 pointInSpace)
-{
-    return length(pointInSpace) - 2.;
-}
-float sdf1(vec3 pointInSpace)
-{
-    return length(pointInSpace-vec3(1.0+sin(4661.69),0.0,-0.5)) - 2.;
-}
-float sdf2(vec3 pointInSpace)
-{
-    return length(pointInSpace+vec3(1.0+cos(4661.69),0.0,1.0)) - 1.;
-}
-
-// This is the signed distance representation of a sphere of radius 2.
-float signedDistanceFunction(vec3 p)
-{
-    return union_(subtract(sdf0(p), sdf1(p)), sdf2(p)) - 0.0;
-}
-
-
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{
-    // Get a screen position with (0,0) in the middle and aspect-ratio accounted for.
-    vec2 screenPos = fragCoord/iResolution.yy - vec2(.5*iResolution.x/iResolution.y,.5);
-
-    // Uncomment to see what the magnitude of screenPos is at each pixel.
-    //fragColor = vec4(length(screenPos));return;
-
-    // Initialize the camera position at z=-10 and y=sin(time) creating the bobbing effect.
-    vec3 rayOrigin = vec3(0,sin(iTime),-10);
-
-    // Point the ray along the positive z axis offset by the screen position of the current pixel.
-    vec3 rayDirection = normalize(vec3(screenPos, 1));
-
-	// This is the ray marching loop.
-    vec3 marchingPoint = rayOrigin;
-    float curDist = 0.;
-    float totalDistMarched = 0.;
-    for (int iterations = 0; iterations < 50; ++iterations)
-    {
-        // Evaluate the SDF at the current marching point, giving the distance to the closest surface.
-        curDist = signedDistanceFunction(marchingPoint);
-
-        // If we're withing EPSILON distance of a surface, break the marching loop.
-        if (curDist < EPSILON) {
-            totalDistMarched = length(marchingPoint - rayOrigin);
-            break;
-        }
-
-        // Move the walking point the furthest safe distance along the ray, which we know is the distance to the closest surface.
-        marchingPoint += rayDirection * curDist;
-        totalDistMarched += curDist;
-
-        // If we've gone very far without hitting anything, just quit the loop.
-        if (totalDistMarched > 30.) break;
-    }
-
-    // After the loop, if we reached a surface, draw red faded out exponentially by how far the ray travelled.
-    if (curDist < EPSILON) {
-        float fog = exp(-.5*(totalDistMarched-8.));
-        fragColor = fog * vec4(1,0,0,0);
-        return;
-    }
-
-    // Otherwise, we hit nothing, draw black.
-    fragColor = vec4(0);
-}
-
-
-
 */
 
