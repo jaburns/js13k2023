@@ -26,12 +26,6 @@ const run = cmd => {
         process.exit(code)
 }
 
-const replaceSimple = (x, y, z) => {
-    const idx = x.indexOf(y)
-    if (idx < 0) return x
-    return x.substr(0, idx) + z + x.substr(idx + y.length)
-}
-
 const applyConstants = code => {
     for( let k in constantsJson )
         code = code.replace( new RegExp( k, 'g' ), constantsJson[k] )
@@ -94,20 +88,6 @@ const hashIdentifiers = js => {
     return js
 }
 
-const wrapWithHTML = js => {
-    let htmlTemplate = fs.readFileSync( 'src/index.html', 'utf8' );
-
-    htmlTemplate = applyConstants(htmlTemplate)
-
-    htmlTemplate = htmlTemplate
-        .split('\n')
-        .map(line => line.trim())
-        .join(DEBUG ? '\n' : '')
-        .trim();
-
-    return replaceSimple(htmlTemplate, '__CODE__', js.trim());
-};
-
 const main = () => {
     sh.cd(__dirname)
     sh.mkdir('-p', 'build')
@@ -148,9 +128,7 @@ const main = () => {
     //    x = fs.readFileSync('/tmp/bbb.js', 'utf8')
     //}
 
-    x = wrapWithHTML(x)
-
-    fs.writeFileSync('build/index.html', x)
+    fs.writeFileSync('build/index.html', `<canvas id=CC></canvas><script>${x}</script>`)
 
     if (!DEBUG) {
         run(advzipPath + ' --shrink-insane -i 10 -a out.zip build/index.html')
