@@ -1,14 +1,13 @@
 import { csgSolidBake, csgSolidCube, csgSolidOpSubtract } from './csg';
 import { gl_COLOR_BUFFER_BIT } from './glConsts'
-import {inputsConsumeFrame} from './inputs';
-import {shaderCompile} from './render';
+import { inputsConsumeFrame } from './inputs';
+import { shaderCompile } from './render';
 import { main_vert, main_frag } from './shaders.gen';
 import { sndOllie, zzfxP } from './zzfx';
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
-
-const TICK_MILLIS = 33
+declare const k_tickMillis: number
 
 let setStyle = (elem: HTMLElement): void => {
     let style = elem.style
@@ -42,13 +41,16 @@ let frame = () => {
     accTime += dt
     prevNow = newNow
 
-    while (accTime > TICK_MILLIS) {
-        accTime -= TICK_MILLIS
+    while (accTime > k_tickMillis) {
+        accTime -= k_tickMillis
+        tick()
     }
 
     G.clearColor(0,1,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
+}
 
+let tick = (): void => {
     if (Math.random() < 0.01) {
         console.log(JSON.stringify(inputsConsumeFrame()))
         zzfxP(sndOllie)

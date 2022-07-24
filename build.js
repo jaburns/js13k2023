@@ -26,18 +26,15 @@ const run = cmd => {
         process.exit(code)
 }
 
-const applyConstants = code => {
-    for( let k in constantsJson )
-        code = code.replace( new RegExp( k, 'g' ), constantsJson[k] )
-    return code
-}
-
 const generateShaderFile = () => {
     sh.mkdir('-p', 'shadersTmp')
     sh.ls('src').forEach(x => {
         if (x.endsWith('.frag') || x.endsWith('.vert')) {
             let code = fs.readFileSync(path.resolve('src', x), 'utf8')
-            code = applyConstants(code)
+
+            for( let k in constantsJson )
+                code = code.replace( new RegExp( k, 'g' ), constantsJson[k] )
+
             fs.writeFileSync(path.resolve('shadersTmp', x), code)
         }
     })
@@ -119,7 +116,6 @@ const main = () => {
         x = fs.readFileSync('build/bundle.js', 'utf8');
     }
 
-    x = applyConstants(x)
     x = 'G=CC.getContext`webgl`;' + x
 
     //if (!DEBUG) {
