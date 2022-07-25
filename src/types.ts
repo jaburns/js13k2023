@@ -15,10 +15,6 @@ export type Mat4 = Readonly<[
     number, number, number, number,
 ]>
 
-// TODO replace usages with for loops and check compression
-let range = (a: number, b: number): number[] =>
-    (Array(b-a) as any).fill().map((_:any,i:number)=>i+a);
-
 let v3Lift1 = (fn: (n: number) => number): (v: Vec3) => Vec3 => (v: Vec3): Vec3 =>
     v.map(fn) as any as Vec3
 let v3Lift2 = (fn: (m: number, n: number) => number): (u: Vec3, v: Vec3) => Vec3 => (u: Vec3, v: Vec3): Vec3 =>
@@ -52,8 +48,11 @@ export let m4Perspective = (aspect: number, near: number, far: number): Mat4 => 
     0, 0, (2 * far * near) / (near - far), 0
 ]
 
-export let m4Mul = (a: Mat4, b: Mat4): Mat4 =>
-    range(0,16).map((x,i,j:any) => (
-        i=4*(x/4|0), j=x%4,
-        b[i]*a[j] + b[i+1]*a[j+4] + b[i+2]*a[j+8] + b[i+3]*a[j+12]
-    )) as any as Mat4
+export let m4Mul = (a: Mat4, b: Mat4): Mat4 => {
+    let result = []
+    for (let x = 0; x < 16; ++x) {
+        let i=4*(x/4|0), j=x%4;
+        result.push(b[i]*a[j] + b[i+1]*a[j+4] + b[i+2]*a[j+8] + b[i+3]*a[j+12])
+    }
+    return result as any
+}

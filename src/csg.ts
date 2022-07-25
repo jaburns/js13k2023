@@ -23,7 +23,7 @@ type CsgPlane = Readonly<{
 const enum PolygonType {
     COPLANAR = 0,
     FRONT = 1,
-    BACK = 2,
+    BACKK = 2,
     SPANNING = 3,
 }
 
@@ -44,16 +44,16 @@ let csgPlaneSplitPolygon = (
     self: CsgPlane,
     polygon: CsgPolygon,
     coplanarFront: CsgPolygon[],
-    coplanarBack: CsgPolygon[],
+    coplanarBackk: CsgPolygon[],
     front: CsgPolygon[],
-    back: CsgPolygon[],
+    backk: CsgPolygon[],
 ): void => {
     let polygonType = 0
 
     let types: PolygonType[] = polygon.vertices.map(vert => {
         let t = v3Dot(self.normal, vert.pos) - self.w
         let typ =
-            t < -CSG_PLANE_EPSILON ? PolygonType.BACK
+            t < -CSG_PLANE_EPSILON ? PolygonType.BACKK
             : t > CSG_PLANE_EPSILON ? PolygonType.FRONT
             : PolygonType.COPLANAR
         polygonType |= typ
@@ -61,13 +61,13 @@ let csgPlaneSplitPolygon = (
     })
 
     if (polygonType == PolygonType.COPLANAR) {
-        (v3Dot(self.normal, polygon.plane.normal) > 0 ? coplanarFront : coplanarBack).push(polygon)
+        (v3Dot(self.normal, polygon.plane.normal) > 0 ? coplanarFront : coplanarBackk).push(polygon)
     }
     if (polygonType == PolygonType.FRONT) {
         front.push(polygon)
     }
-    if (polygonType == PolygonType.BACK) {
-        back.push(polygon)
+    if (polygonType == PolygonType.BACKK) {
+        backk.push(polygon)
     }
     if (polygonType == PolygonType.SPANNING) {
         let f: CsgVertex[] = [], b: CsgVertex[] = []
@@ -75,7 +75,7 @@ let csgPlaneSplitPolygon = (
             let j = (i + 1) % polygon.vertices.length
             let ti = types[i], tj = types[j]
             let vi = polygon.vertices[i], vj = polygon.vertices[j]
-            if (ti != PolygonType.BACK) f.push(vi)
+            if (ti != PolygonType.BACKK) f.push(vi)
             if (ti != PolygonType.FRONT) b.push(vi)
             if ((ti | tj) == PolygonType.SPANNING) {
                 let t = (self.w - v3Dot(self.normal, vi.pos)) / v3Dot(self.normal, v3Sub(vj.pos, vi.pos))
@@ -88,7 +88,7 @@ let csgPlaneSplitPolygon = (
             }
         }
         if (f.length >= 3) front.push(csgPolygonNew(f))
-        if (b.length >= 3) back.push(csgPolygonNew(b))
+        if (b.length >= 3) backk.push(csgPolygonNew(b))
     }
 }
 
@@ -97,14 +97,14 @@ let csgPlaneSplitPolygon = (
 type CsgNode = {
     plane: CsgPlane | Null,
     front: CsgNode | Null,
-    back: CsgNode | Null,
+    backk: CsgNode | Null,
     polygons: CsgPolygon[],
 }
 
 let csgNodeNew = (): CsgNode => ({
     plane: Null,
     front: Null,
-    back: Null,
+    backk: Null,
     polygons: [],
 })
 
@@ -115,10 +115,10 @@ let csgNodeInvert = (self: CsgNode): void => {
     }))
     self.plane = csgPlaneFlip(self.plane as CsgPlane) // assume not null
     if (self.front) csgNodeInvert(self.front)
-    if (self.back) csgNodeInvert(self.back)
+    if (self.backk) csgNodeInvert(self.backk)
     let swap = self.front
-    self.front = self.back
-    self.back = swap
+    self.front = self.backk
+    self.backk = swap
 }
 
 let csgNodeClipPolygons = (self: CsgNode, polygons: CsgPolygon[]): CsgPolygon[] => {
@@ -127,32 +127,32 @@ let csgNodeClipPolygons = (self: CsgNode, polygons: CsgPolygon[]): CsgPolygon[] 
     }
 
     let front: CsgPolygon[] = []
-    let back: CsgPolygon[] = []
+    let backk: CsgPolygon[] = []
 
     polygons.map(poly =>
-        csgPlaneSplitPolygon(self.plane as CsgPlane, poly, front, back, front, back)
+        csgPlaneSplitPolygon(self.plane as CsgPlane, poly, front, backk, front, backk)
     )
 
     if (self.front) {
         front = csgNodeClipPolygons(self.front, front)
     }
-    back = self.back
-        ? csgNodeClipPolygons(self.back, back)
+    backk = self.backk
+        ? csgNodeClipPolygons(self.backk, backk)
         : []
 
-    return [...front, ...back]
+    return [...front, ...backk]
 }
 
 let csgNodeClipTo = (self: CsgNode, bsp: CsgNode): void => {
     self.polygons = csgNodeClipPolygons(bsp, self.polygons)
     if (self.front) csgNodeClipTo(self.front, bsp)
-    if (self.back) csgNodeClipTo(self.back, bsp)
+    if (self.backk) csgNodeClipTo(self.backk, bsp)
 }
 
 let csgNodeAllPolygons = (self: CsgNode): CsgPolygon[] => [
     ...self.polygons,
     ...(self.front ? csgNodeAllPolygons(self.front) : []),
-    ...(self.back ? csgNodeAllPolygons(self.back) : []),
+    ...(self.backk ? csgNodeAllPolygons(self.backk) : []),
 ]
 
 let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
@@ -162,10 +162,10 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
         }
 
         let front: CsgPolygon[] = []
-        let back: CsgPolygon[] = []
+        let backk: CsgPolygon[] = []
 
         polygons.map(poly =>
-            csgPlaneSplitPolygon(self.plane as CsgPlane, poly, self.polygons, self.polygons, front, back)
+            csgPlaneSplitPolygon(self.plane as CsgPlane, poly, self.polygons, self.polygons, front, backk)
         )
         if (front.length) {
             if (!self.front) {
@@ -173,21 +173,21 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
             }
             csgNodeBuild(self.front, front)
         }
-        if (back.length) {
-            if (!self.back) {
-                self.back = csgNodeNew()
+        if (backk.length) {
+            if (!self.backk) {
+                self.backk = csgNodeNew()
             }
-            csgNodeBuild(self.back, back)
+            csgNodeBuild(self.backk, backk)
         }
     }
 }
 
 // ----------------------------------------------------------------------------
 
-const F_UNION     = 'a'
-const F_SUBTRACT  = 'b'
-const F_CUBE      = 'c'
-const V_POSITION  = 'd'
+const V_POSITION  = 'a'
+const F_UNION     = 'b'
+const F_SUBTRACT  = 'c'
+const F_CUBE      = 'd'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
@@ -239,9 +239,9 @@ export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => ({
     ].map(info => csgPolygonNew(
         info[0].map(i => {
             let p: Vec3 = [
-                center[0] + radius[0] * (2 * ~~!!(i & 1) - 1),
-                center[1] + radius[1] * (2 * ~~!!(i & 2) - 1),
-                center[2] + radius[2] * (2 * ~~!!(i & 4) - 1)
+                center[0] + radius[0] * (2 * (!!(i & 1) as any) - 1),
+                center[1] + radius[1] * (2 * (!!(i & 2) as any) - 1),
+                center[2] + radius[2] * (2 * (!!(i & 4) as any) - 1)
             ]
             let ret: CsgVertex = {
                 pos: p,

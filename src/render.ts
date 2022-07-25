@@ -1,5 +1,5 @@
 import {modelGeoDraw} from "./geo"
-import { gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_NONE, gl_VERTEX_SHADER } from "./glConsts"
+import { gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_VERTEX_SHADER } from "./glConsts"
 import { main_frag, main_vert } from "./shaders.gen"
 import { GameState } from "./state"
 import { m4Mul, m4Perspective, Mat4 } from "./types"
@@ -7,6 +7,7 @@ import { worldGetGeo } from "./world"
 
 declare const DEBUG: boolean
 declare const G: WebGLRenderingContext
+declare const CC: HTMLCanvasElement
 
 let mainShader: WebGLProgram
 
@@ -40,20 +41,7 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     return shader
 }
 
-//let mat4_perspective = (aspect: any, near: any, far: any): any => {
-////  let f = 1.0 / Math.tan(fovy / 2), nf = 1 / (near - far)
-//    let f = 1, nf = 1 / (near - far);  // Hard-coded FOV to PI / 2 here.
-//
-//    return [
-//        f / aspect, 0, 0, 0,
-//        0, f, 0, 0,
-//        0, 0, (far + near) * nf, -1,
-//        0, 0, (2 * far * near) * nf, 0
-//    ];
-//};
-
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
-    G.viewport(0,0,window.innerWidth, window.innerHeight)
     G.clearColor(0,0,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
 
@@ -69,7 +57,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
          0,-2 + Math.sin(state.tick / 100),-5, 1
     ]
     let ppp = m4Perspective(
-        window.innerWidth / window.innerHeight,
+        CC.width / CC.height,
         0.1,
         100
     )

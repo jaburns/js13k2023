@@ -7,6 +7,7 @@ import { sndOllie, zzfxP } from './zzfx'
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 declare const k_tickMillis: number
+declare const k_pixelSize: number
 
 let prevState = gameStateNew()
 let curState = gameStateNew()
@@ -18,15 +19,10 @@ let curState = gameStateNew()
     style.width = '100%'
     style.height = '100%'
     style.cursor = 'pointer'
-    style.imageRendering = 'pixelated'
 })
 
-let resize = () => {
-    let w = window.innerWidth, h = window.innerHeight
-    CC.width = w
-    CC.height = h
-    G.viewport(0, 0, w, h)
-}
+let resize = () =>
+    G.viewport(0, 0, CC.width=window.innerWidth/k_pixelSize, CC.height=window.innerHeight/k_pixelSize)
 
 window.onresize = resize
 resize()

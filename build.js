@@ -27,17 +27,36 @@ const run = cmd => {
         process.exit(code)
 }
 
+const shaderExternalNames = {}
+
+const buildShaderExternalNamesTable = () => {
+    const idents = []
+
+    sh.ls('shaders').forEach(x => {
+        let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
+        idents.push(...code.match(/[uav]_[a-zA-Z0-9_]+/g))
+    })
+
+    let identCounter = 0
+    const uniqueIdents = idents.filter((v,i,s)=>s.indexOf(v)===i)
+    for (const id of uniqueIdents) {
+        shaderExternalNames[id] = 'a'+(identCounter.toString(36))
+        identCounter++
+    }
+}
+
 const generateShaderFile = () => {
     sh.mkdir('-p', 'shadersTmp')
     sh.ls('shaders').forEach(x => {
-        if (x.endsWith('.frag') || x.endsWith('.vert')) {
-            let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
+        let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
 
-            for( let k in constantsJson )
-                code = code.replace( new RegExp( k, 'g' ), constantsJson[k] )
+        for (const k in constantsJson)
+            code = code.replace(new RegExp( k, 'g' ), constantsJson[k])
 
-            fs.writeFileSync(path.resolve('shadersTmp', x), code)
-        }
+        for (const k in shaderExternalNames)
+            code = code.replace(new RegExp( k, 'g' ), shaderExternalNames[k])
+
+        fs.writeFileSync(path.resolve('shadersTmp', x), code)
     })
 
     let noRenames = ['main']
@@ -90,6 +109,8 @@ const main = () => {
     sh.cd(__dirname)
     sh.mkdir('-p', 'build')
 
+    buildShaderExternalNamesTable()
+
     console.log('Minifying shaders...');
     generateShaderFile();
 
@@ -99,13 +120,16 @@ const main = () => {
     console.log('Rolling up bundle...')
     run('rollup -c' + (DEBUG ? ' --config-debug' : ''))
 
-    let x;
+    let x = fs.readFileSync('build/bundle.js', 'utf8');
+    for (const k in shaderExternalNames)
+        x = x.replace(new RegExp( k, 'g' ), shaderExternalNames[k])
+    fs.writeFileSync('build/bundle1.js', x)
 
     if (!DEBUG) {
         sh.cd('build')
         console.log('Applying closure compiler...')
         fs.writeFileSync('externs.js', CLOSURE_COMPILER_EXTERNS)
-        run('google-closure-compiler -O ADVANCED bundle.js --js_output_file bundle2.js --externs externs.js')
+        run('google-closure-compiler -O ADVANCED bundle1.js --js_output_file bundle2.js --externs externs.js')
 
         console.log('Applying terser...')
         run('terser --ecma 2020 --mangle reserved=[CC,G] --mangle_props keep_quoted --compress passes=10,keep_fargs=false,pure_getters=true,unsafe=true,unsafe_arrows=true,unsafe_comps=true,unsafe_math=true,unsafe_methods=true,unsafe_symbols=true --format quote_style=1 --output bundle3.js bundle2.js')
@@ -117,7 +141,7 @@ const main = () => {
         x = fs.readFileSync('build/bundle.js', 'utf8');
     }
 
-    x = 'G=CC.getContext`webgl`;' + x
+    x = "G=CC.getContext('webgl',{antialias:!1});" + x
 
     if (!DEBUG && !NO_ROADROLLER) {
         fs.writeFileSync('/tmp/aaa.js', x)
@@ -125,7 +149,7 @@ const main = () => {
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')
     }
 
-    fs.writeFileSync('build/index.html', `<canvas id=CC><script>${x}</script>`)
+    fs.writeFileSync('build/index.html', `<canvas id=CC style=image-rendering:pixelated><script>${x}</script>`)
 
     if (!DEBUG) {
         run(advzipPath + ' --shrink-insane -i 10 -a out.zip build/index.html')

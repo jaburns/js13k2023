@@ -20,7 +20,8 @@ let frame: InputsFrame = inputsNew()
 let lastMouseDx = 0
 let lastMouseDy = 0
 
-let handleMouseMoveEvent = (dx: number, dy: number): void => {
+document.onmousemove = (e: MouseEvent): void => {
+    let dx = e.movementX, dy = e.movementY
     if (dx*dx > 10000 && dx * lastMouseDx < 0 || dy*dy > 10000 && dy * lastMouseDy < 0) {
         return
     }
@@ -28,18 +29,6 @@ let handleMouseMoveEvent = (dx: number, dy: number): void => {
     lastMouseDy = dy
     frame.mouseAccX += dx
     frame.mouseAccY += dy
-}
-
-if ((window as any).onpointerrawupdate !== undefined) {
-    (window as any).onpointerrawupdate = (es: PointerEvent): void => {
-        for (let e of es.getCoalescedEvents()) {
-            handleMouseMoveEvent(e.movementX, e.movementY)
-        }
-    }
-} else {
-    window.onmousemove = (e: MouseEvent): void => {
-        handleMouseMoveEvent(e.movementX, e.movementY)
-    }
 }
 
 document.onmousedown = (e: MouseEvent) => {
