@@ -1,6 +1,8 @@
-import { gl_FRAGMENT_SHADER, gl_VERTEX_SHADER } from "./glConsts"
+import {modelGeoDraw} from "./geo"
+import { gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_FRAGMENT_SHADER, gl_NONE, gl_VERTEX_SHADER } from "./glConsts"
 import { main_frag, main_vert } from "./shaders.gen"
 import { GameState } from "./state"
+import { m4Mul, m4Perspective, Mat4 } from "./types"
 import { worldGetGeo } from "./world"
 
 declare const DEBUG: boolean
@@ -36,8 +38,41 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     return shader
 }
 
+//let mat4_perspective = (aspect: any, near: any, far: any): any => {
+////  let f = 1.0 / Math.tan(fovy / 2), nf = 1 / (near - far)
+//    let f = 1, nf = 1 / (near - far);  // Hard-coded FOV to PI / 2 here.
+//
+//    return [
+//        f / aspect, 0, 0, 0,
+//        0, f, 0, 0,
+//        0, 0, (far + near) * nf, -1,
+//        0, 0, (2 * far * near) * nf, 0
+//    ];
+//};
+
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
-    console.log(earlyInputs, state, worldGetGeo())
+    G.viewport(0,0,window.innerWidth, window.innerHeight)
+    G.clearColor(0,1,0,1)
+    G.clear(gl_COLOR_BUFFER_BIT)
+
+    let mv: Mat4 = [
+        1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        0,0,-5,1
+    ]
+    let ppp = m4Perspective(
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100
+    )
+    let mvp = m4Mul(ppp, mv)
+
+    G.useProgram(mainShader)
+
+    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
+
+    modelGeoDraw(worldGetGeo(), mainShader)
 }
 
 mainShader = shaderCompile(main_vert, main_frag)

@@ -1,4 +1,3 @@
-import { gl_COLOR_BUFFER_BIT } from './glConsts'
 import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
 import { renderGame } from './render'
 import { gameStateLerp, gameStateNew, gameStateTick } from './state'
@@ -22,12 +21,15 @@ let curState = gameStateNew()
     style.imageRendering = 'pixelated'
 })
 
-window.onresize = () => {
+let resize = () => {
     let w = window.innerWidth, h = window.innerHeight
     CC.width = w
     CC.height = h
     G.viewport(0, 0, w, h)
 }
+
+window.onresize = resize
+resize()
 
 let accTime = 0
 let prevNow = 0
@@ -59,9 +61,6 @@ let frame = () => {
     }
 
     renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
-
-    G.clearColor(0,1,0,1)
-    G.clear(gl_COLOR_BUFFER_BIT)
 
     if (Math.random() < 0.01) {
         zzfxP(sndOllie)

@@ -283,7 +283,7 @@ export let csgSolidBake = (self: CsgSolid): [number[], number[], SdfFunction] =>
         }
     })
 
-    return [vertexBuf, indexBuf, sdfFunc]
+    return [indexBuf, vertexBuf, sdfFunc]
 }
 
 /*

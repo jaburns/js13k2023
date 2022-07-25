@@ -5,8 +5,8 @@ let worldGeo: ModelGeo
 let worldFn: SdfFunction
 
 let mesh0 = csgSolidCube([0,0,0], [1,1,1])
-let mesh1 = csgSolidCube([1,1,1], [1,1,1])
-let [vert, idx, sdfFn] = csgSolidBake(csgSolidOpSubtract(mesh0, mesh1))
+let mesh1 = csgSolidCube([0.5,1,1], [1,1,1])
+let [idx, vert, sdfFn] = csgSolidBake(csgSolidOpSubtract(mesh0, mesh1))
 worldGeo = modelGeoCreate(idx, vert)
 worldFn = sdfFn
 
