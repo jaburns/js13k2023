@@ -10,7 +10,7 @@ export type ModelGeo = {
     normalBuffer: WebGLBuffer | Null,
 }
 
-export let modelGeoCreate = (indices: number[], verts: number[]): ModelGeo => {
+export let modelGeoCreate = (indices: number[], verts: number[], norms: number[]): ModelGeo => {
     let index = G.createBuffer()!
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, index)
     G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl_STATIC_DRAW)
@@ -19,11 +19,15 @@ export let modelGeoCreate = (indices: number[], verts: number[]): ModelGeo => {
     G.bindBuffer(gl_ARRAY_BUFFER, vertex)
     G.bufferData(gl_ARRAY_BUFFER, new Float32Array(verts), gl_STATIC_DRAW)
 
+    let normal = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, normal)
+    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(norms), gl_STATIC_DRAW)
+
     return {
         indexBuffer: index,
         indexBufferLen: indices.length,
         vertexBuffer: vertex,
-        normalBuffer: Null,
+        normalBuffer: normal,
     }
 }
 

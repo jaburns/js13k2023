@@ -1,5 +1,5 @@
 import {modelGeoDraw} from "./geo"
-import { gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_FRAGMENT_SHADER, gl_NONE, gl_VERTEX_SHADER } from "./glConsts"
+import { gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_NONE, gl_VERTEX_SHADER } from "./glConsts"
 import { main_frag, main_vert } from "./shaders.gen"
 import { GameState } from "./state"
 import { m4Mul, m4Perspective, Mat4 } from "./types"
@@ -9,6 +9,8 @@ declare const DEBUG: boolean
 declare const G: WebGLRenderingContext
 
 let mainShader: WebGLProgram
+
+G.enable(gl_DEPTH_TEST)
 
 let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     let vs = G.createShader(gl_VERTEX_SHADER)!
@@ -52,14 +54,19 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
 
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
     G.viewport(0,0,window.innerWidth, window.innerHeight)
-    G.clearColor(0,1,0,1)
+    G.clearColor(0,0,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
 
+    let predictedYaw = earlyInputs.mouseAccX + state.yaw
+
+    let c = Math.cos(predictedYaw / 100)
+    let s = Math.sin(predictedYaw / 100)
+
     let mv: Mat4 = [
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,-5,1
+         c, 0, s, 0,
+         0, 1, 0, 0,
+        -s, 0, c, 0,
+         0,-2 + Math.sin(state.tick / 100),-5, 1
     ]
     let ppp = m4Perspective(
         window.innerWidth / window.innerHeight,

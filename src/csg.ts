@@ -266,8 +266,9 @@ let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
 
 export type SdfFunction = (pos: Vec3) => number
 
-export let csgSolidBake = (self: CsgSolid): [number[], number[], SdfFunction] => {
+export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], SdfFunction] => {
     let vertexBuf: number[] = []
+    let normalBuf: number[] = []
     let indexBuf: number[] = []
     let innerSdfFunc = new Function(
         `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE}`,
@@ -277,13 +278,16 @@ export let csgSolidBake = (self: CsgSolid): [number[], number[], SdfFunction] =>
 
     self.polys.map(poly => {
         let startIdx = vertexBuf.length / 3
-        poly.vertices.map(x => vertexBuf.push(...x.pos))
+        poly.vertices.map(x => (
+            vertexBuf.push(...x.pos),
+            normalBuf.push(...x.normal)
+        ))
         for (let i = 2; i < poly.vertices.length; i++) {
             indexBuf.push(startIdx, startIdx+i-1, startIdx+i)
         }
     })
 
-    return [indexBuf, vertexBuf, sdfFunc]
+    return [indexBuf, vertexBuf, normalBuf, sdfFunc]
 }
 
 /*

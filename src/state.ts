@@ -1,15 +1,22 @@
 import { InputsFrame } from "./inputs"
+import {lerp} from "./types"
 
-export type GameState = { }
-
-export let gameStateNew = (): GameState => ({})
-
-export let gameStateLerp = (a: GameState, b: GameState, t: number): GameState => {
-    if (Math.random() < 1e-9) console.log(a,t)
-    return b
+export type GameState = {
+    tick: number,
+    yaw: number,
 }
 
-export let gameStateTick = (state: GameState, inputs: InputsFrame): GameState => {
-    if (Math.random() < 1e-9) console.log(inputs)
-    return state
-}
+export let gameStateNew = (): GameState => ({
+    tick: 0,
+    yaw: 0,
+})
+
+export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: number): GameState => ({
+    tick: lerp(a.tick, b.tick, t),
+    yaw: b.yaw,
+})
+
+export let gameStateTick = (state: Readonly<GameState>, inputs: InputsFrame): GameState => ({
+    tick: state.tick + 1,
+    yaw: state.yaw + inputs.mouseAccX,
+})
