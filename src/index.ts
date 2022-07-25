@@ -1,11 +1,9 @@
-import { csgSolidBake, csgSolidCube, csgSolidOpSubtract } from './csg';
 import { gl_COLOR_BUFFER_BIT } from './glConsts'
-import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs';
-import { drawGame, shaderCompile } from './render';
-import { main_vert, main_frag } from './shaders.gen';
-import { gameStateLerp, gameStateNew, gameStateTick } from './state';
-import { False, True } from './types';
-import { sndOllie, zzfxP } from './zzfx';
+import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
+import { renderGame } from './render'
+import { gameStateLerp, gameStateNew, gameStateTick } from './state'
+import { False, True } from './types'
+import { sndOllie, zzfxP } from './zzfx'
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
@@ -60,7 +58,7 @@ let frame = () => {
         accTickInputs = inputsNew()
     }
 
-    drawGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
+    renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
 
     G.clearColor(0,1,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
@@ -69,22 +67,5 @@ let frame = () => {
         zzfxP(sndOllie)
     }
 }
-
-let mesh0 = csgSolidCube([0,0,0], [1,1,1])
-let mesh1 = csgSolidCube([1,1,1], [1,1,1])
-let [vert, idx, sdfFn] = csgSolidBake(csgSolidOpSubtract(mesh0, mesh1))
-
-let objFileLines = []
-for(let i = 0; i < vert.length; i += 3) {
-    objFileLines.push(`v ${vert[i]} ${vert[i+1]} ${vert[i+2]}`)
-}
-for(let i = 0; i < idx.length; i += 3) {
-    objFileLines.push(`f ${idx[i]+1} ${idx[i+1]+1} ${idx[i+2]+1}`)
-}
-
-console.log(shaderCompile(main_vert, main_frag))
-console.log(objFileLines.join('\n'))
-console.log('XXX', sdfFn([1,1,1]), sdfFn([.01,.01,.01]))
-
 
 frame()

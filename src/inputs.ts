@@ -1,7 +1,7 @@
-import { Bool, False, True } from "./types";
+import { Bool, False, True } from "./types"
 
 declare const CC: HTMLCanvasElement
-declare const DEBUG: boolean;
+declare const DEBUG: boolean
 
 export interface InputsFrame {
     mouseAccX: number

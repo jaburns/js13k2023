@@ -242,7 +242,7 @@ export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => ({
                 center[0] + radius[0] * (2 * ~~!!(i & 1) - 1),
                 center[1] + radius[1] * (2 * ~~!!(i & 2) - 1),
                 center[2] + radius[2] * (2 * ~~!!(i & 4) - 1)
-            ];
+            ]
             let ret: CsgVertex = {
                 pos: p,
                 normal: info[1] as any as Vec3,
