@@ -7,6 +7,7 @@ const advzipPath = require('advzip-bin')
 const constantsJson = require('./src/constants.json')
 
 const DEBUG = process.argv.indexOf('--debug') >= 0
+const NO_ROADROLLER = process.argv.indexOf('--no-roadroller') >= 0
 const MONO_RUN = process.platform === 'win32' ? '' : 'mono ';
 
 const CLOSURE_COMPILER_EXTERNS = `
@@ -118,13 +119,13 @@ const main = () => {
 
     x = 'G=CC.getContext`webgl`;' + x
 
-    //if (!DEBUG) {
-    //    fs.writeFileSync('/tmp/aaa.js', x)
-    //    run('roadroller -D -O2 -o /tmp/bbb.js /tmp/aaa.js')
-    //    x = fs.readFileSync('/tmp/bbb.js', 'utf8')
-    //}
+    if (!DEBUG && !NO_ROADROLLER) {
+        fs.writeFileSync('/tmp/aaa.js', x)
+        run('roadroller -D -O2 -o /tmp/bbb.js /tmp/aaa.js')
+        x = fs.readFileSync('/tmp/bbb.js', 'utf8')
+    }
 
-    fs.writeFileSync('build/index.html', `<canvas id=CC></canvas><script>${x}</script>`)
+    fs.writeFileSync('build/index.html', `<canvas id=CC><script>${x}</script>`)
 
     if (!DEBUG) {
         run(advzipPath + ' --shrink-insane -i 10 -a out.zip build/index.html')
