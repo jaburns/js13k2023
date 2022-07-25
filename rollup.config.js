@@ -1,25 +1,20 @@
-import replace from '@rollup/plugin-replace';
-import replaceConfig from './src/constants.json';
-const constantsJson = require('./src/constants.json')
+import replace from '@rollup/plugin-replace'
+import replaceConfig from './constants.json'
 
-const DEBUG = process.argv.indexOf( '--config-debug' ) >= 0;
+const DEBUG = process.argv.indexOf( '--config-debug' ) >= 0
 
-replaceConfig.preventAssignment = true;
-replaceConfig.DEBUG = DEBUG;
-
-for (let k in constantsJson) {
-  replaceConfig[k] = constantsJson[k]
-}
+replaceConfig.preventAssignment = true
+replaceConfig.DEBUG = DEBUG
 
 const plugins = [
-  replace(replaceConfig)
-];
+    replace(replaceConfig)
+]
 
 export default {
-  input: 'build/index.js',
-  output: {
-    file: 'build/bundle.js',
-    strict: false,
-  },
-  plugins
-};
+    input: 'build/index.js',
+    output: {
+        file: 'build/bundle.js',
+        strict: false,
+    },
+    plugins
+}

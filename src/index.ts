@@ -1,15 +1,20 @@
 import { csgSolidBake, csgSolidCube, csgSolidOpSubtract } from './csg';
 import { gl_COLOR_BUFFER_BIT } from './glConsts'
-import { inputsConsumeFrame } from './inputs';
-import { shaderCompile } from './render';
+import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs';
+import { drawGame, shaderCompile } from './render';
 import { main_vert, main_frag } from './shaders.gen';
+import { gameStateLerp, gameStateNew, gameStateTick } from './state';
+import { False, True } from './types';
 import { sndOllie, zzfxP } from './zzfx';
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 declare const k_tickMillis: number
 
-let setStyle = (elem: HTMLElement): void => {
+let prevState = gameStateNew()
+let curState = gameStateNew()
+
+;[document.body, CC].map((elem: HTMLElement): void => {
     let style = elem.style
     style.overflow = 'hidden'
     style.margin = 0 as any
@@ -17,10 +22,7 @@ let setStyle = (elem: HTMLElement): void => {
     style.height = '100%'
     style.cursor = 'pointer'
     style.imageRendering = 'pixelated'
-}
-
-setStyle(document.body)
-setStyle(CC)
+})
 
 window.onresize = () => {
     let w = window.innerWidth, h = window.innerHeight
@@ -31,6 +33,7 @@ window.onresize = () => {
 
 let accTime = 0
 let prevNow = 0
+let accTickInputs = inputsNew()
 
 let frame = () => {
     requestAnimationFrame(frame)
@@ -38,21 +41,31 @@ let frame = () => {
     let newNow = performance.now()
     if (!prevNow) prevNow = newNow
     let dt = Math.min (newNow - prevNow, 1000)
+    let frameInputs = inputsConsumeFrame()
+    let didRunTick = False
+
     accTime += dt
     prevNow = newNow
 
+    inputsAdd(accTickInputs, frameInputs)
+
     while (accTime > k_tickMillis) {
+        didRunTick = True
         accTime -= k_tickMillis
-        tick()
+        prevState = curState
+        curState = gameStateTick(curState, accTickInputs)
+        accTickInputs.mouseAccX = accTickInputs.mouseAccY = 0
     }
+    if (didRunTick) {
+        accTickInputs = inputsNew()
+    }
+
+    drawGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
 
     G.clearColor(0,1,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
-}
 
-let tick = (): void => {
     if (Math.random() < 0.01) {
-        console.log(JSON.stringify(inputsConsumeFrame()))
         zzfxP(sndOllie)
     }
 }

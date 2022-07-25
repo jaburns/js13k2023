@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path');
 const ShapeShifter = require('regpack/shapeShifter')
 const advzipPath = require('advzip-bin')
-const constantsJson = require('./src/constants.json')
+const constantsJson = require('./constants.json')
 
 const DEBUG = process.argv.indexOf('--debug') >= 0
 const NO_ROADROLLER = process.argv.indexOf('--no-roadroller') >= 0
@@ -29,9 +29,9 @@ const run = cmd => {
 
 const generateShaderFile = () => {
     sh.mkdir('-p', 'shadersTmp')
-    sh.ls('src').forEach(x => {
+    sh.ls('shaders').forEach(x => {
         if (x.endsWith('.frag') || x.endsWith('.vert')) {
-            let code = fs.readFileSync(path.resolve('src', x), 'utf8')
+            let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
 
             for( let k in constantsJson )
                 code = code.replace( new RegExp( k, 'g' ), constantsJson[k] )

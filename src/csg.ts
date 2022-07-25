@@ -1,4 +1,4 @@
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, v3Lerp, v3Max, v3Length, v3Abs, v3Min } from "./global"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, v3Lerp, v3Max, v3Length, v3Abs } from "./types"
 
 const CSG_PLANE_EPSILON = 1e-5
 

@@ -1,4 +1,4 @@
-import { Bool, False, True } from "./global";
+import { Bool, False, True } from "./types";
 
 declare const CC: HTMLCanvasElement
 declare const DEBUG: boolean;
@@ -9,13 +9,13 @@ export interface InputsFrame {
     keysDown: Record<string, Bool>,
 }
 
-let newInputsFrame = (): InputsFrame => ({
+export let inputsNew = (): InputsFrame => ({
     mouseAccX: 0,
     mouseAccY: 0,
     keysDown: {},
 })
 
-let frame: InputsFrame = newInputsFrame()
+let frame: InputsFrame = inputsNew()
 
 let lastMouseDx = 0
 let lastMouseDy = 0
@@ -72,11 +72,20 @@ document.onkeyup = (e: KeyboardEvent) => {
 export let inputsConsumeFrame = (): InputsFrame => {
     if (document.pointerLockElement === CC) {
         let outFrame = frame
-        frame = newInputsFrame()
+        frame = inputsNew()
         for (let k in outFrame.keysDown) {
             frame.keysDown[k] = outFrame.keysDown[k]
         }
         return outFrame
     }
-    return newInputsFrame()
+    return inputsNew()
 }
+
+export let inputsAdd = (self: InputsFrame, other: InputsFrame): void => {
+    for (let k in other.keysDown) {
+        self.keysDown[k] |= other.keysDown[k]
+    }
+    self.mouseAccX += other.mouseAccX
+    self.mouseAccY += other.mouseAccY
+}
+

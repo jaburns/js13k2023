@@ -1,5 +1,6 @@
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_FRAGMENT_SHADER, gl_STATIC_DRAW, gl_TRIANGLES, gl_VERTEX_SHADER } from "./glConsts";
-import { Null } from "./global";
+import { GameState } from "./state";
+import { Null } from "./types";
 
 declare const DEBUG: boolean;
 declare const G: WebGLRenderingContext
@@ -39,7 +40,7 @@ export let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     return shader;
 };
 
-let modelGeoCreate = (indices: number[], verts: number[]): ModelGeo => {
+export let modelGeoCreate = (indices: number[], verts: number[]): ModelGeo => {
     let index = G.createBuffer()!
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, index)
     G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl_STATIC_DRAW)
@@ -71,4 +72,8 @@ let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
 
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.indexBuffer)
     G.drawElements(gl_TRIANGLES, self.indexBufferLen, G.UNSIGNED_SHORT, 0)
+}
+
+export let drawGame = (_earlyInputs: {mouseAccX: number, mouseAccY: number}, _state: GameState): void => {
+
 }
