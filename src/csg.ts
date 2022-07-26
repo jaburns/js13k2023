@@ -228,48 +228,23 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
-//export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => {
-//    let data: any[] = [...'046201113752110154101267312102311104576112']
-//    let polys: CsgPolygon[] = []
-//    for (let i = 0; i < 42/*data.length*/; i += 7) {
-//        let norm: Vec3 = [data[i+4]-1, data[i+5]-1, data[i+6]-1]
-//        let verts = []
-//        for (let j = 0; j < 4; ++j) {
-//            let p: Vec3 = [
-//                center[0] + radius[0] * (2 * (!!(data[i+j] & 1) as any) - 1),
-//                center[1] + radius[1] * (2 * (!!(data[i+j] & 2) as any) - 1),
-//                center[2] + radius[2] * (2 * (!!(data[i+j] & 4) as any) - 1)
-//            ]
-//            verts.push({
-//                pos: p,
-//                normal: norm
-//            })
-//        }
-//        polys.push(csgPolygonNew(verts))
-//    }
-//    return {
-//        polys,
-//        sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
-//    }
-//}
-
 export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => ({
     polys: [
         [[0, 4, 6, 2], [-1, 0, 0]],
-        [[1, 3, 7, 5], [1, 0, 0]],
-        [[0, 1, 5, 4], [0, -1, 0]],
-        [[2, 6, 7, 3], [0, 1, 0]],
-        [[0, 2, 3, 1], [0, 0, -1]],
-        [[4, 5, 7, 6], [0, 0, 1]]
+        [[1, 3, 7, 5], [ 1, 0, 0]],
+        [[0, 1, 5, 4], [ 0,-1, 0]],
+        [[2, 6, 7, 3], [ 0, 1, 0]],
+        [[0, 2, 3, 1], [ 0, 0,-1]],
+        [[4, 5, 7, 6], [ 0, 0, 1]]
     ].map(info => csgPolygonNew(
-        info[0].map(i => {
-            let p: Vec3 = v3Add(center, v3Mul(radius, [1,2,4].map(z=> (2*(!!(i&z) as any)-1)) as any))
-            let ret: CsgVertex = {
-                pos: p,
-                normal: info[1] as any as Vec3,
-            }
-            return ret
-        })
+        info[0].map(i => ({
+            pos: [
+                center[0] + radius[0] * (2 * (!!(i & 1) as any) - 1),
+                center[1] + radius[1] * (2 * (!!(i & 2) as any) - 1),
+                center[2] + radius[2] * (2 * (!!(i & 4) as any) - 1)
+            ],
+            normal: info[1] as any as Vec3,
+        }))
     )),
     sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
 })
