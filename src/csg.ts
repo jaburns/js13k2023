@@ -1,5 +1,5 @@
 // From https://github.com/evanw/csg.js
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, v3Lerp, v3Max, v3Length, v3Abs, v3Add, v3Scale, v3Mul } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, v3Add, v3Scale, v3Mul, Vec2 } from "./types"
 
 const CSG_PLANE_EPSILON = 1e-5
 
@@ -9,11 +9,13 @@ let v3Zero: Vec3 = [0,0,0]
 type CsgVertex = Readonly<{
     pos: Vec3,
     normal: Vec3,
+    uv: Vec2,
 }>
 
 type CsgPolygon = Readonly<{
     vertices: ReadonlyArray<CsgVertex>
     plane: CsgPlane,
+    tag: number,
 }>
 
 type CsgPlane = Readonly<{
@@ -28,11 +30,12 @@ const enum PolygonType {
     SPANNING = 3,
 }
 
-let csgPolygonNew = (verts: CsgVertex[]): CsgPolygon => (
+let csgPolygonNew = (verts: CsgVertex[], tag: number): CsgPolygon => (
     v3Scratch = v3Normalize(v3Cross(v3Sub(verts[1].pos, verts[0].pos), v3Sub(verts[2].pos, verts[0].pos))),
     {
         vertices: verts,
-        plane: { normal: v3Scratch, w: v3Dot(v3Scratch, verts[0].pos) }
+        plane: { normal: v3Scratch, w: v3Dot(v3Scratch, verts[0].pos) },
+        tag
     }
 )
 
@@ -81,15 +84,16 @@ let csgPlaneSplitPolygon = (
             if ((ti | tj) == PolygonType.SPANNING) {
                 let t = (self.w - v3Dot(self.normal, vi.pos)) / v3Dot(self.normal, v3Sub(vj.pos, vi.pos))
                 let v: CsgVertex = {
-                    pos: v3Lerp(vi.pos, vj.pos, t),
-                    normal: v3Normalize(v3Lerp(vi.normal, vj.normal, t)),
+                    pos: vecLerp(vi.pos, vj.pos, t),
+                    normal: v3Normalize(vecLerp(vi.normal, vj.normal, t)),
+                    uv: vecLerp(vi.uv, vj.uv, t),
                 }
                 f.push(v)
                 b.push(v)
             }
         }
-        if (f.length >= 3) front.push(csgPolygonNew(f))
-        if (b.length >= 3) backk.push(csgPolygonNew(b))
+        if (f.length >= 3) front.push(csgPolygonNew(f, polygon.tag))
+        if (b.length >= 3) backk.push(csgPolygonNew(b, polygon.tag))
     }
 }
 
@@ -111,8 +115,9 @@ let csgNodeNew = (): CsgNode => ({
 
 let csgNodeInvert = (self: CsgNode): void => {
     self.polygons = self.polygons.map(poly => ({
-        vertices: poly.vertices.map(v => ({ pos: v.pos, normal: v3Negate(v.normal) })).reverse(),
+        vertices: poly.vertices.map(v => ({ pos: v.pos, normal: v3Negate(v.normal), uv: v.uv })).reverse(),
         plane: csgPlaneFlip(poly.plane),
+        tag: poly.tag,
     }))
     self.plane = csgPlaneFlip(self.plane as CsgPlane) // assume not null
     if (self.front) csgNodeInvert(self.front)
@@ -229,7 +234,7 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
-export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => ({
+export let csgSolidCube = (center: Vec3, radius: Vec3, tag: number): CsgSolid => ({
     polys: [
         [[0, 4, 6, 2], [-1, 0, 0]],
         [[1, 3, 7, 5], [ 1, 0, 0]],
@@ -238,14 +243,20 @@ export let csgSolidCube = (center: Vec3, radius: Vec3): CsgSolid => ({
         [[0, 2, 3, 1], [ 0, 0,-1]],
         [[4, 5, 7, 6], [ 0, 0, 1]]
     ].map(info => csgPolygonNew(
-        info[0].map(i => ({
-            pos: [
+        info[0].map(i => (
+            v3Scratch = [
                 center[0] + radius[0] * (2 * (!!(i & 1) as any) - 1),
                 center[1] + radius[1] * (2 * (!!(i & 2) as any) - 1),
                 center[2] + radius[2] * (2 * (!!(i & 4) as any) - 1)
-            ],
-            normal: info[1] as any as Vec3,
-        }))
+            ], {
+                pos: v3Scratch,
+                normal: info[1] as any as Vec3,
+                uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
+                    : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
+                    : [v3Scratch[0],v3Scratch[1]]
+            }
+        )),
+        tag
     )),
     sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
 })
@@ -263,9 +274,11 @@ let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
 
 export type SdfFunction = (pos: Vec3) => number
 
-export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], SdfFunction] => {
+export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], number[], number[], SdfFunction] => {
     let vertexBuf: number[] = []
     let normalBuf: number[] = []
+    let uvBuf: number[] = []
+    let tagBuf: number[] = []
     let indexBuf: number[] = []
     let innerSdfFunc = new Function(
         `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE}`,
@@ -277,14 +290,16 @@ export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], SdfFu
         let startIdx = vertexBuf.length / 3
         poly.vertices.map(x => (
             vertexBuf.push(...x.pos),
-            normalBuf.push(...x.normal)
+            normalBuf.push(...x.normal),
+            uvBuf.push(...x.uv),
+            tagBuf.push(poly.tag)
         ))
         for (let i = 2; i < poly.vertices.length; i++) {
             indexBuf.push(startIdx, startIdx+i-1, startIdx+i)
         }
     })
 
-    return [indexBuf, vertexBuf, normalBuf, sdfFunc]
+    return [indexBuf, vertexBuf, normalBuf, uvBuf, tagBuf, sdfFunc]
 }
 
 /*

@@ -1,9 +1,9 @@
 import {modelGeoDraw} from "./geo"
-import { gl_CLAMP_TO_EDGE, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_LINEAR, gl_NEAREST, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER, gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_UNSIGNED_BYTE, gl_VERTEX_SHADER } from "./glConsts"
-import { main_frag, main_vert } from "./shaders.gen"
+import { gl_CLAMP_TO_EDGE, gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_LEQUAL, gl_LINEAR, gl_NEAREST, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE1, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER, gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_UNSIGNED_BYTE, gl_VERTEX_SHADER } from "./glConsts"
+import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
 import { m4Mul, m4Perspective, Mat4 } from "./types"
-import { worldGetGeo } from "./world"
+import { worldGetGeo, worldGetSky } from "./world"
 import { tttTextures } from "./textures"
 
 declare const DEBUG: boolean
@@ -11,6 +11,8 @@ declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
 
 let mainShader: WebGLProgram
+let skyShader: WebGLProgram
+
 let textures: WebGLTexture[] = tttTextures.map(canvas => {
     let tex = G.createTexture()!
     G.bindTexture(gl_TEXTURE_2D, tex)
@@ -25,6 +27,7 @@ let textures: WebGLTexture[] = tttTextures.map(canvas => {
 })
 
 G.enable(gl_DEPTH_TEST)
+G.depthFunc(gl_LEQUAL)
 
 let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     let vs = G.createShader(gl_VERTEX_SHADER)!
@@ -55,9 +58,6 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
 }
 
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
-    G.clearColor(0,0,0,1)
-    G.clear(gl_COLOR_BUFFER_BIT)
-
     let predictedYaw = earlyInputs.mouseAccX + state.yaw
 
     let c = Math.cos(predictedYaw / 100)
@@ -75,16 +75,39 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         1000
     )
     let mvp = m4Mul(ppp, mv)
-
     G.useProgram(mainShader)
-
     G.activeTexture(gl_TEXTURE0)
+    G.bindTexture(gl_TEXTURE_2D, textures[0])
+    G.activeTexture(gl_TEXTURE1)
     G.bindTexture(gl_TEXTURE_2D, textures[1])
-
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
-    G.uniform1i(G.getUniformLocation(mainShader, 'u_tex'), 0)
-
+    G.uniform1i(G.getUniformLocation(mainShader, 'u_tex0'), 0)
+    G.uniform1i(G.getUniformLocation(mainShader, 'u_tex1'), 1)
+    G.enable(gl_CULL_FACE)
     modelGeoDraw(worldGetGeo(), mainShader)
+
+
+    G.useProgram(skyShader)
+    G.activeTexture(gl_TEXTURE0)
+    G.bindTexture(gl_TEXTURE_2D, textures[0])
+    G.activeTexture(gl_TEXTURE1)
+    G.bindTexture(gl_TEXTURE_2D, textures[1])
+    mv = [
+         c, 0, s, 0,
+         0, 1, 0, 0,
+        -s, 0, c, 0,
+         0, 0, 0, 1
+    ]
+    ppp = m4Perspective(
+        CC.width / CC.height,
+        0.1,
+        1000
+    )
+    mvp = m4Mul(ppp, mv)
+    G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, mvp)
+    G.disable(gl_CULL_FACE)
+    modelGeoDraw(worldGetSky(), skyShader)
 }
 
 mainShader = shaderCompile(main_vert, main_frag)
+skyShader = shaderCompile(sky_vert, sky_frag)

@@ -7,9 +7,11 @@ export type ModelGeo = {
     indexBufferLen: number,
     vertexBuffer: WebGLBuffer,
     normalBuffer: WebGLBuffer,
+    uvBuffer: WebGLBuffer
+    tagBuffer: WebGLBuffer
 }
 
-export let modelGeoCreate = (indices: number[], verts: number[], norms: number[]): ModelGeo => {
+export let modelGeoCreate = (indices: number[], verts: number[], norms: number[], uvs: number[], tags: number[]): ModelGeo => {
     let index = G.createBuffer()!
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, index)
     G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl_STATIC_DRAW)
@@ -22,11 +24,21 @@ export let modelGeoCreate = (indices: number[], verts: number[], norms: number[]
     G.bindBuffer(gl_ARRAY_BUFFER, normal)
     G.bufferData(gl_ARRAY_BUFFER, new Float32Array(norms), gl_STATIC_DRAW)
 
+    let uv = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, uv)
+    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(uvs), gl_STATIC_DRAW)
+
+    let tag = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, tag)
+    G.bufferData(gl_ARRAY_BUFFER, new Uint8Array(tags), gl_STATIC_DRAW)
+
     return {
         indexBuffer: index,
         indexBufferLen: indices.length,
         vertexBuffer: vertex,
         normalBuffer: normal,
+        uvBuffer: uv,
+        tagBuffer: tag,
     }
 }
 
@@ -40,6 +52,16 @@ export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     posLoc = G.getAttribLocation(shaderProg, 'a_normal')
     G.enableVertexAttribArray(posLoc)
     G.vertexAttribPointer(posLoc, 3, G.FLOAT, false, 0, 0)
+
+    G.bindBuffer(gl_ARRAY_BUFFER, self.uvBuffer)
+    posLoc = G.getAttribLocation(shaderProg, 'a_uv')
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 2, G.FLOAT, false, 0, 0)
+
+    G.bindBuffer(gl_ARRAY_BUFFER, self.tagBuffer)
+    posLoc = G.getAttribLocation(shaderProg, 'a_tag')
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 1, G.UNSIGNED_BYTE, false, 0, 0)
 
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.indexBuffer)
     G.drawElements(gl_TRIANGLES, self.indexBufferLen, G.UNSIGNED_SHORT, 0)

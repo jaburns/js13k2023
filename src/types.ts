@@ -7,6 +7,7 @@ export const Null: Null = 0
 
 export let lerp = (a: number, b: number, t: number): number => a + t*(b-a)
 
+export type Vec2 = Readonly<[number, number]>
 export type Vec3 = Readonly<[number, number, number]>
 export type Mat4 = Readonly<[
     number, number, number, number,
@@ -32,7 +33,7 @@ export let v3Max = v3Lift2(Math.max)
 export let v3Min = v3Lift2(Math.min)
 
 //export let v3MulAdd = (a: Vec3, b: Vec3, s: number): Vec3 => a.map((x,i)=>x+s*b[i]) as any as Vec3
-export let v3Lerp = (a: Vec3, b: Vec3, t: number): Vec3 => a.map((x,i)=>lerp(x,b[i],t)) as any as Vec3
+export let vecLerp = <T extends Vec2 | Vec3>(a: T, b: T, t: number): T => a.map((x,i)=>lerp(x,b[i],t)) as any as T
 
 export let v3Dot = ([x,y,z]: Vec3, [a,b,c]: Vec3): number => x*a + y*b + z*c
 export let v3Cross = ([x,y,z]: Vec3, [a,b,c]: Vec3): Vec3 => [y*c - z*b, z*a - x*c, x*b - y*a]
