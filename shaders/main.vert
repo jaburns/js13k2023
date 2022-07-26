@@ -1,17 +1,14 @@
 attribute vec3 a_position;
 attribute vec3 a_normal;
-attribute vec2 a_uv;
-attribute float a_tag;
+attribute vec3 a_uvTag;
 
 uniform mat4 u_mvp;
 
 varying vec3 v_normal;
-varying vec2 v_uv;
-varying float v_tag;
+varying vec3 v_uvTag;
 
 void main() {
     v_normal = a_normal;
-    v_uv = a_uv;
-    v_tag = a_tag;
+    v_uvTag = a_uvTag;
     gl_Position = u_mvp * vec4(a_position, 1);
 }

@@ -68,11 +68,11 @@ const generateShaderFile = () => {
     if (DEBUG) {
         run(MONO_RUN + 'tools/shader_minifier.exe' +
             ' --no-renaming' +
-            ' --format js -o build/shaders.js --preserve-externals shadersTmp/*')
+            ' --aggressive-inlining --format js -o build/shaders.js --preserve-externals shadersTmp/*')
     } else {
         run(MONO_RUN + 'tools/shader_minifier.exe' +
             ' --no-renaming-list ' + noRenames.join(',') +
-            ' --format js -o build/shaders.js --preserve-externals shadersTmp/*')
+            ' --aggressive-inlining --format js -o build/shaders.js --preserve-externals shadersTmp/*')
     }
 
     let shaderCode = fs.readFileSync('build/shaders.js', 'utf8').replace(/\r/g, '')
@@ -84,7 +84,9 @@ const generateShaderFile = () => {
     shaderCode = shaderLines.join('\n')
 
     if (DEBUG) {
-        shaderCode = shaderCode.replace(/" \+/g, '\\n" +');
+        shaderCode = shaderCode.replace(/;/g, ';\\n`+\n`');
+        shaderCode = shaderCode.replace(/{/g, '{\\n`+\n`');
+        shaderCode = shaderCode.replace(/}/g, '}\\n`+\n`');
     }
 
     fs.writeFileSync('src/shaders.gen.ts', shaderCode)

@@ -1,5 +1,5 @@
 import {modelGeoDraw} from "./geo"
-import { gl_CLAMP_TO_EDGE, gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_LEQUAL, gl_LINEAR, gl_NEAREST, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE1, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER, gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_UNSIGNED_BYTE, gl_VERTEX_SHADER } from "./glConsts"
+import { gl_CULL_FACE, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_LEQUAL, gl_LINEAR, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE1, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER, gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_UNSIGNED_BYTE, gl_VERTEX_SHADER } from "./glConsts"
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
 import { m4Mul, m4Perspective, Mat4 } from "./types"
@@ -76,16 +76,16 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     )
     let mvp = m4Mul(ppp, mv)
     G.useProgram(mainShader)
-    G.activeTexture(gl_TEXTURE0)
-    G.bindTexture(gl_TEXTURE_2D, textures[0])
-    G.activeTexture(gl_TEXTURE1)
-    G.bindTexture(gl_TEXTURE_2D, textures[1])
+
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
-    G.uniform1i(G.getUniformLocation(mainShader, 'u_tex0'), 0)
-    G.uniform1i(G.getUniformLocation(mainShader, 'u_tex1'), 1)
+
+    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
+        G.activeTexture(gl_TEXTURE0 + i),
+        G.bindTexture(gl_TEXTURE_2D, tex),
+        i
+    )))
     G.enable(gl_CULL_FACE)
     modelGeoDraw(worldGetGeo(), mainShader)
-
 
     G.useProgram(skyShader)
     G.activeTexture(gl_TEXTURE0)

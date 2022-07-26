@@ -3,17 +3,18 @@ precision highp float;
 //]
 
 varying vec3 v_normal;
-varying vec2 v_uv;
-varying float v_tag;
+varying vec3 v_uvTag;
 
-uniform sampler2D u_tex0;
-uniform sampler2D u_tex1;
+uniform sampler2D u_tex[2];
+
+vec3 i_samp() {
+    vec2 uv = 0.2*v_uvTag.xy;
+    int tag = int(v_uvTag.z+.5);
+    return (tag == 0 ? texture2D(u_tex[0], uv)
+        : texture2D(u_tex[1], uv)).xyz;
+}
 
 void main() {
-    vec2 uv = 0.2*v_uv;
-    vec4 samp = v_tag > 0.5 ? texture2D(u_tex1,uv) : texture2D(u_tex0,uv);
-
-    vec3 texColor = samp.xyz * (0.5+0.5*max(0.,dot(v_normal,normalize(vec3(1,2,1)))));
-
+    vec3 texColor = i_samp() * (0.5+0.5*max(0.,dot(v_normal,normalize(vec3(1,2,1)))));
     gl_FragColor = vec4(texColor,1);
 }

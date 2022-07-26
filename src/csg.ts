@@ -1,5 +1,5 @@
 // From https://github.com/evanw/csg.js
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, v3Add, v3Scale, v3Mul, Vec2 } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2 } from "./types"
 
 const CSG_PLANE_EPSILON = 1e-5
 
@@ -274,11 +274,10 @@ let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
 
 export type SdfFunction = (pos: Vec3) => number
 
-export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], number[], number[], SdfFunction] => {
+export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], number[], SdfFunction] => {
     let vertexBuf: number[] = []
     let normalBuf: number[] = []
-    let uvBuf: number[] = []
-    let tagBuf: number[] = []
+    let uvTagBuf: number[] = []
     let indexBuf: number[] = []
     let innerSdfFunc = new Function(
         `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE}`,
@@ -291,15 +290,14 @@ export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], numbe
         poly.vertices.map(x => (
             vertexBuf.push(...x.pos),
             normalBuf.push(...x.normal),
-            uvBuf.push(...x.uv),
-            tagBuf.push(poly.tag)
+            uvTagBuf.push(...x.uv, poly.tag)
         ))
         for (let i = 2; i < poly.vertices.length; i++) {
             indexBuf.push(startIdx, startIdx+i-1, startIdx+i)
         }
     })
 
-    return [indexBuf, vertexBuf, normalBuf, uvBuf, tagBuf, sdfFunc]
+    return [indexBuf, vertexBuf, normalBuf, uvTagBuf, sdfFunc]
 }
 
 /*
