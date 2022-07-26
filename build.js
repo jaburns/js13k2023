@@ -121,12 +121,13 @@ const main = () => {
     run('rollup -c' + (DEBUG ? ' --config-debug' : ''))
 
     let x = fs.readFileSync('build/bundle.js', 'utf8');
+
     for (const k in shaderExternalNames)
         x = x.replace(new RegExp( k, 'g' ), shaderExternalNames[k])
-    fs.writeFileSync('build/bundle1.js', x)
 
     if (!DEBUG) {
         sh.cd('build')
+        fs.writeFileSync('bundle1.js', x)
         console.log('Applying closure compiler...')
         fs.writeFileSync('externs.js', CLOSURE_COMPILER_EXTERNS)
         run('google-closure-compiler -O ADVANCED bundle1.js --js_output_file bundle2.js --externs externs.js')
@@ -137,8 +138,6 @@ const main = () => {
 
         x = fs.readFileSync('build/bundle3.js', 'utf8');
         x = hashIdentifiers(x, true)
-    } else {
-        x = fs.readFileSync('build/bundle.js', 'utf8');
     }
 
     x = "G=CC.getContext('webgl',{antialias:!1});" + x

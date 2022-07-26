@@ -59,7 +59,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let ppp = m4Perspective(
         CC.width / CC.height,
         0.1,
-        100
+        1000
     )
     let mvp = m4Mul(ppp, mv)
 

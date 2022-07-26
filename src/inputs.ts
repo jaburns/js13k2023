@@ -22,52 +22,45 @@ let lastMouseDy = 0
 
 document.onmousemove = (e: MouseEvent): void => {
     let dx = e.movementX, dy = e.movementY
-    if (dx*dx > 10000 && dx * lastMouseDx < 0 || dy*dy > 10000 && dy * lastMouseDy < 0) {
-        return
+    if ((dx*dx < 10000 || dx * lastMouseDx < 0) && (dy*dy < 10000 || dy * lastMouseDy < 0)) {
+        frame.mouseAccX += lastMouseDx = dx
+        frame.mouseAccY += lastMouseDy = dy
     }
-    lastMouseDx = dx
-    lastMouseDy = dy
-    frame.mouseAccX += dx
-    frame.mouseAccY += dy
 }
 
 document.onmousedown = (e: MouseEvent) => {
     if (document.pointerLockElement !== CC) {
         CC.requestPointerLock()
     } else {
-        frame.keysDown['_'+e.button] = True
+        frame.keysDown[e.button] = True
     }
 }
 
 document.onmouseup = (e: MouseEvent) => {
-    frame.keysDown['_'+e.button] = False
+    frame.keysDown[e.button] = False
 }
 
 document.onkeydown = (e: KeyboardEvent) => {
     if (DEBUG) {
         if (e.repeat) return false
-        frame.keysDown[e.code] = 1
+        frame.keysDown[e.code] = True
         return !e.code.startsWith('Arrow') && e.code !== 'Space' && e.code !== 'Tab'
     } else {
-        frame.keysDown[e.code] = 1
+        frame.keysDown[e.code] = True
         return false
     }
 }
 
 document.onkeyup = (e: KeyboardEvent) => {
-    frame.keysDown[e.code] = 0
+    frame.keysDown[e.code] = False
 }
 
 export let inputsConsumeFrame = (): InputsFrame => {
-    if (document.pointerLockElement === CC) {
-        let outFrame = frame
-        frame = inputsNew()
-        for (let k in outFrame.keysDown) {
-            frame.keysDown[k] = outFrame.keysDown[k]
-        }
-        return outFrame
-    }
-    return inputsNew()
+    let outFrame = frame
+    frame = inputsNew()
+    inputsAdd(frame, outFrame)
+    frame.mouseAccX = frame.mouseAccY = 0
+    return document.pointerLockElement == CC ? outFrame : inputsNew()
 }
 
 export let inputsAdd = (self: InputsFrame, other: InputsFrame): void => {
