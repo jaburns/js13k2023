@@ -132,7 +132,7 @@
 			float: right;
 			padding: 0 4px 4px 4px;
 		}
-		
+
 		.zoom {
 			display: inline-block;
 			text-align: center;
@@ -197,7 +197,7 @@
 	</div>
 	<div id="menu" class="panel">
 		<div class="flex-h">
-			<input type="text" id="result" class="flex-grow" 
+			<input type="text" id="result" class="flex-grow"
 				placeholder="Paste your TTT data here" oninput="ttte.parseUserInput()" value="[[1823,2,3844,1,1,2,25878,2,1,2,47967,2,300,2,46847,2,200],[16911,2,17167,1,3,1,1,1,14,6,16,16,29448,16920,29471,1,-7,9,14,6,16,16,29448,16920,29471,2,37893,2,1,2,2,4,1]]" />
 			<label><a href="#" id="share" target="_blank">share</a></label>
 			<label class="action undo" title="Undo" onclick="ttte.undo()">‹</label>
@@ -219,7 +219,7 @@
 				<input type="number" value="15" min="0", max="15"/>
 				<label>color</label>
 			</div>
-		
+
 			<label>STEPS</label>
 			<div id="steps-container">
 				<div id="steps">
@@ -263,13 +263,13 @@ class TTTE {
 		}
 
 		this.textures = [];
-		
+
 		this.zoom = 1;
 		this.setZoom(3);
 
 		if (window.location.hash.length > 8) {
 			let input = window.location.hash.substr(1);
-			let def_string = decodeURIComponent(escape(window.atob(input)));			
+			let def_string = decodeURIComponent(escape(window.atob(input)));
 			this.parse(def_string);
 		}
 
@@ -289,8 +289,8 @@ class TTTE {
 				0x333f // color
 			]
 		};
-		
-		
+
+
 		let preview_canvas = document.createElement('canvas');
 		preview_canvas.addEventListener('click', (ev) => this.setTexture(texture));
 		div.appendChild(preview_canvas);
@@ -350,8 +350,8 @@ class TTTE {
 
 	setColorInput(container, c) {
 		this.$$('input', container)[0].value = '#' +(
-			((((c>>12)&15)*17) << 16) + 
-			((((c>>8)&15)*17) << 8) + 
+			((((c>>12)&15)*17) << 16) +
+			((((c>>8)&15)*17) << 8) +
 			((((c>>4)&15)*17))
 		).toString(16).padStart(6, '0');
 		this.$$('input', container)[1].value = (c&15);
@@ -389,7 +389,7 @@ class TTTE {
 		let op = TTTE.Operations[op_name];
 
 		let div = document.createElement('div');
-		
+
 		let label = document.createElement('label');
 		label.textContent = op_name;
 		div.appendChild(label);
@@ -408,7 +408,7 @@ class TTTE {
 		move_down_button.title = 'move step down';
 		move_down_button.addEventListener('click', (ev) => this.moveStep(div, 1));
 		div.appendChild(move_down_button);
-		
+
 		let move_up_button = document.createElement('div');
 		move_up_button.classList.add('action', 'step-button', 'step-delete');
 		move_up_button.textContent = '▲';
@@ -531,7 +531,7 @@ class TTTE {
 		if (this.undo_position == 0) {
 			return;
 		}
-		
+
 		this.undo_position--;
 		this.parse(this.undo_stack[this.undo_position]);
 	}
@@ -540,14 +540,14 @@ class TTTE {
 		if (this.undo_position == this.undo_stack.length-1) {
 			return;
 		}
-		
+
 		this.undo_position++;
 		this.parse(this.undo_stack[this.undo_position]);
 	}
 
 	parse(json) {
 		let defs = JSON.parse(json);
-		
+
 		this.append_to_undo_stack = false;
 
 		// Delete all textures
@@ -601,9 +601,9 @@ class TTTE {
 		this.$('#share').href = '#'+btoa(unescape(encodeURIComponent(def_string)));
 		this.$('#num-bytes').textContent = def_string.length;
 
-		
+
 		// Render
-		let rendered = ttt(defs, this.textures.indexOf(this.current_texture))[0];
+		let rendered = T(defs, this.textures.indexOf(this.current_texture))[0];
 
 		// Draw into main canvas
 		let main_canvas = this.$('#canvas');
@@ -611,7 +611,7 @@ class TTTE {
 		main_canvas.height = 128;
 		let main_ctx = main_canvas.getContext('2d');
 		main_ctx.drawImage(rendered, 0, 0);
-		
+
 		// Draw into preview
 		let preview_canvas = this.$('canvas', this.current_texture.div);
 		preview_canvas.width = 128;
@@ -625,7 +625,7 @@ class TTTE {
 		if (
 			this.append_to_undo_stack &&
 			(
-				!this.undo_stack.length || 
+				!this.undo_stack.length ||
 				this.undo_stack[this.undo_stack.length-1] !== def_string
 			)
 		) {
@@ -633,7 +633,7 @@ class TTTE {
 			clearTimeout(this.append_undo_stack_timeout);
 				this.append_undo_stack_timeout = setTimeout(()=> {
 				this.undo_position = this.undo_stack.length;
-				this.undo_stack.push(def_string);	
+				this.undo_stack.push(def_string);
 			}, 1000);
 		}
 	}

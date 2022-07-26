@@ -21,15 +21,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// Compress with:
-// uglifyjs ttt.js --compress --screw-ie8 --mangle toplevel -o ttt.min.js
-
-ttt=(td, only_this_index=-1,stack_depth=0) => {
+T=(td, only_this_index=-1,stack_depth=0) => {
 	return td.filter((d,i) => only_this_index < 0 || i == only_this_index).map(d => {
 		let i = 0,
 			e = document.createElement('canvas'),
 			c = e.getContext('2d'),
-			rgba_from_2byte = c => 
+			rgba_from_2byte = c =>
 				("#"+(c|65536).toString(16).slice(-4)),
 			fill_rect = (x, y, w, h, ...colors) =>
 				colors.map((color, j) => {
@@ -38,8 +35,8 @@ ttt=(td, only_this_index=-1,stack_depth=0) => {
 				})
 			;
 		// Set up canvas width and height
-		const W = 128;
-		const H = 128;
+		const W = e.width = 128;
+		const H = e.height = 128;
 
 		// Fill with background color
 		fill_rect(0, 0, W, H, 0,0, d[i++]);
@@ -51,8 +48,8 @@ ttt=(td, only_this_index=-1,stack_depth=0) => {
 				(x, y, width, height, top, bottom, fill) => {
 					fill_rect(x, y, width, height, top, bottom, fill)
 				},
-				
-				// 1 - rectangle_multiple: start_x, start_y, width, height, 
+
+				// 1 - rectangle_multiple: start_x, start_y, width, height,
 				//                         inc_x, inc_y, top, bottom, fill
 				(sx, sy, w, h, inc_x, inc_y, top, bottom, fill) => {
 					for (let x = sx; x < W; x += inc_x) {
@@ -61,26 +58,26 @@ ttt=(td, only_this_index=-1,stack_depth=0) => {
 						}
 					}
 				},
-				
-				// 2 - random noise: color, size
+
+				// 2 - random noise: color, size, power
 				(color, size, power) => {
 					for (let x = 0; x < W; x += size) {
 						for (let y = 0; y < H; y += size) {
-							// Take the color value (first 3 nibbles) and 
+							// Take the color value (first 3 nibbles) and
 							// randomize the alpha value (last nibble)
 							// between 0 and the input alpha.
 							fill_rect(x, y, size, size, 0, 0, (color&0xfff0) + Math.pow(Math.random(),power)*(color&15));
 						}
 					}
 				},
-				
+
 				// 3 - text: x, y, color, font,size, text
 				(x, y, color, font, size, text) => {
 					c.fillStyle = rgba_from_2byte(color);
 					c.font = size + 'px ' + ['sans-',''][font]+'serif';
 					c.fillText(text, x, y);
 				},
-				
+
 				// 4 - draw a previous texture
 				// We limit the stack depth here to not end up in an infinite loop
 				// by accident
@@ -88,7 +85,7 @@ ttt=(td, only_this_index=-1,stack_depth=0) => {
 					c.globalAlpha = alpha/15;
 					(
 						texture_index < td.length && stack_depth < 16 &&
-						c.drawImage(ttt(td, texture_index, stack_depth+1)[0], x, y, w, h)
+						c.drawImage(T(td, texture_index, stack_depth+1)[0], x, y, w, h)
 					);
 					c.globalAlpha = 1;
 				}

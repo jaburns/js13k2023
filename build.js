@@ -19,6 +19,10 @@ var CC;
  * @type {!WebGLRenderingContext}
  */
 var G;
+/**
+ * @type {!Function}
+ */
+var T;
 `
 
 const run = cmd => {

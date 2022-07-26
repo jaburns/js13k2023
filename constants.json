@@ -1,4 +1,5 @@
 {
     "k_tickMillis": "33",
-    "k_pixelSize": "2"
+    "k_pixelSize": "2",
+    "k_texSize": "128"
 }

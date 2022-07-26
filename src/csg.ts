@@ -1,3 +1,4 @@
+// From https://github.com/evanw/csg.js
 import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, v3Lerp, v3Max, v3Length, v3Abs, v3Add, v3Scale, v3Mul } from "./types"
 
 const CSG_PLANE_EPSILON = 1e-5
