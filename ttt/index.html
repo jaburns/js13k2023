@@ -523,8 +523,8 @@ class TTTE {
 	setZoom(zoom) {
 		this.zoom = zoom;
 		let canvas = this.$('#canvas');
-		canvas.style.width = (128 * this.zoom) + 'px';
-		canvas.style.height = (128 * this.zoom) + 'px';
+		canvas.style.width = (32 * this.zoom) + 'px';
+		canvas.style.height = (32 * this.zoom) + 'px';
 	}
 
 	undo() {
@@ -607,15 +607,15 @@ class TTTE {
 
 		// Draw into main canvas
 		let main_canvas = this.$('#canvas');
-		main_canvas.width = 128;
-		main_canvas.height = 128;
+		main_canvas.width = 32;
+		main_canvas.height = 32;
 		let main_ctx = main_canvas.getContext('2d');
 		main_ctx.drawImage(rendered, 0, 0);
 
 		// Draw into preview
 		let preview_canvas = this.$('canvas', this.current_texture.div);
-		preview_canvas.width = 128;
-		preview_canvas.height = 128;
+		preview_canvas.width = 32;
+		preview_canvas.height = 32;
 		let preview_ctx = preview_canvas.getContext('2d');
 		preview_ctx.drawImage(rendered, 0, 0);
 
@@ -689,7 +689,7 @@ TTTE.Operations = {
 	"Noise": {
 		"color": TTTE.Color('#cccccc', 4),
 		"size": TTTE.Number(1, 1),
-                "power": TTTE.Number(1, 1),
+        "power": TTTE.Number(1, 1),
 	},
 	// 3
 	"Text": {
@@ -716,6 +716,11 @@ TTTE.Operations = {
 			TTTE.Number(32),
 		],
 		"alpha": TTTE.Number(15, 0, 15),
+	},
+	// 4
+	"Voronoi": {
+		"color": TTTE.Color('#cccccc', 4),
+		"count": TTTE.Number(2, 2),
 	},
 };
 

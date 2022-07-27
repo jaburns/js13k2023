@@ -35,8 +35,8 @@ T=(td, only_this_index=-1,stack_depth=0) => {
 				})
 			;
 		// Set up canvas width and height
-		const W = e.width = 128;
-		const H = e.height = 128;
+		const W = e.width = 32;
+		const H = e.height = 32;
 
 		// Fill with background color
 		fill_rect(0, 0, W, H, 0,0, d[i++]);
@@ -88,7 +88,34 @@ T=(td, only_this_index=-1,stack_depth=0) => {
 						c.drawImage(T(td, texture_index, stack_depth+1)[0], x, y, w, h)
 					);
 					c.globalAlpha = 1;
-				}
+				},
+
+				// 5 - voronoi
+				(color, count) => {
+					let pts = []
+					for (let i = 0; i < count; ++i) {
+						for (let j = 0,a=Math.random(),b=Math.random(); j < 9; ++j) {
+							pts.push([
+								W*(a + (j%3)-1),
+								H*(b + (j/3|0)-1),
+							])
+						}
+					}
+					for (let x = 0; x < W; x += 1) {
+						for (let y = 0; y < H; y += 1) {
+							let [[d0],[d1]] = pts
+								.map(([a,b])=>[Math.hypot(x-a,y-b),a,b])
+								.sort(([a],[b])=>a-b)
+							let amount = Math.max(0,1-.5*Math.abs(d0-d1));
+
+							// Take the color value (first 3 nibbles) and
+							// randomize the alpha value (last nibble)
+							// between 0 and the input alpha.
+							fill_rect(x, y, 1, 1, 0, 0, (color&0xfff0) + amount*(color&15));
+						}
+					}
+				},
+
 			][d[i++]];
 			f(...d.slice(i, i+=f.length));
 		}
