@@ -21,7 +21,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-T=(td, only_this_index=-1,stack_depth=0) => {
+var T=(td, only_this_index=-1,stack_depth=0) => {
 	return td.filter((d,i) => only_this_index < 0 || i == only_this_index).map(d => {
 		let i = 0,
 			e = document.createElement('canvas'),
