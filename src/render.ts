@@ -5,7 +5,7 @@ import {
 } from "./glConsts"
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Sub } from "./types"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Sub } from "./types"
 import { worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
 import { tttTextures } from "./textures"
 import {ModelGeo} from "./csg"
@@ -88,11 +88,11 @@ let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
     let predictedYaw = earlyInputs.mouseAccX * k_mouseSensitivity + state.yaw
     let predictedPitch = earlyInputs.mouseAccY * k_mouseSensitivity + state.pitch_
-
-    let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-3])
+    predictedPitch = Math.max(-1.5, Math.min(1.5, predictedPitch))
+    let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-10])
 
     let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
-    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, state.pos)))
+    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, [0,2,0]))))
     let projectionMat = m4Perspective(
         CC.width / CC.height,
         0.1,

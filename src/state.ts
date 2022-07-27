@@ -32,9 +32,11 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
 
     state.yaw += inputs.mouseAccX * k_mouseSensitivity
     state.pitch_ += inputs.mouseAccY * k_mouseSensitivity
+    state.pitch_ = Math.max(-1.5, Math.min(1.5, state.pitch_))
+    state.yaw %= 2*Math.PI
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch_)), [0,0,-1])
-    state.pos = v3Add(state.pos, v3Scale(lookVec, 0.01))
+    state.pos = v3Add(state.pos, v3Scale(lookVec, 0.03))
 
     console.log(worldGetFn()(state.pos))
 

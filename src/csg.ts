@@ -1,6 +1,6 @@
 // From https://github.com/evanw/csg.js
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2 } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3Scale, v3Add } from "./types"
 
 declare const G: WebGLRenderingContext;
 
@@ -197,6 +197,7 @@ const V_POSITION  = 'a'
 const F_UNION     = 'b'
 const F_SUBTRACT  = 'c'
 const F_CUBE      = 'd'
+const F_SPHERE    = 'e'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
@@ -264,6 +265,43 @@ export let csgSolidCube = (center: Vec3, radius: Vec3, tag: number): CsgSolid =>
     sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
 })
 
+export let csgSolidSphere = (center: Vec3, radius: number, tag: number): CsgSolid => {
+    const stacks = 16, slices = 2 * stacks
+    let vertices: CsgVertex[] = []
+    let polys: CsgPolygon[] = []
+    let normal: Vec3
+    let uv: Vec2
+    let vertex = (theta: number, phi: number) => (
+        uv = [4*theta * (radius|0), 4*phi*(radius|0)],
+        theta *= 2*Math.PI,
+        phi *= Math.PI,
+        normal = [
+            Math.cos(theta) * Math.sin(phi),
+            Math.cos(phi),
+            Math.sin(theta) * Math.sin(phi),
+        ],
+        vertices.push({
+            pos: v3Add(center, v3Scale(normal, radius)),
+            normal,
+            uv,
+        })
+    )
+    for (let i = 0; i < slices; i++) {
+        for (var j = 0; j < stacks; j++) {
+            vertices = []
+            vertex(i/slices, j/stacks)
+            if (j > 0) vertex((i + 1) / slices, j / stacks)
+            if (j < stacks - 1) vertex((i + 1) / slices, (j + 1) / stacks)
+            vertex(i / slices, (j + 1) / stacks)
+            polys.push(csgPolygonNew(vertices, tag))
+        }
+    }
+    return {
+        polys,
+        sdf: `${F_SPHERE}(${V_POSITION},[${center.join(',')}],${radius})`
+    }
+}
+
 let sdfUnion = (a: number, b: number): number =>
     Math.max(Math.min(a,b),0)-Math.hypot(Math.min(a,0),Math.min(b,0))
 
@@ -274,6 +312,9 @@ let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
     v3Scratch = v3Sub(v3Abs(v3Sub(p, center)), radius),
     v3Length(v3Max(v3Scratch, v3Zero)) + Math.min(Math.max(...v3Scratch), 0)
 )
+
+let sdfSphere = (p: Vec3, center: Vec3, radius: number): number =>
+    v3Length(v3Sub(p, center)) - radius
 
 export type SdfFunction = (pos: Vec3) => number
 
@@ -291,10 +332,10 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let uvTagBuf: number[] = []
     let indexBuf: number[] = []
     let innerSdfFunc = new Function(
-        `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE}`,
+        `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE},${F_SPHERE}`,
         'return ' + self.sdf
     )
-    let sdfFunc = (x: Vec3): number => innerSdfFunc(x, sdfUnion, sdfSubtract, sdfCube)
+    let sdfFunc = (x: Vec3): number => innerSdfFunc(x, sdfUnion, sdfSubtract, sdfCube, sdfSphere)
 
     self.polys.map(poly => {
         let startIdx = vertexBuf.length / 3
