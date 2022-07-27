@@ -2,14 +2,23 @@ import { Bool, False, True } from "./types"
 
 declare const CC: HTMLCanvasElement
 declare const DEBUG: boolean
+declare const EDITOR: boolean
 
 export interface InputsFrame {
     mouseAccX: number
     mouseAccY: number
+    mousePosX?: number,
+    mousePosY?: number,
     keysDown: Record<string, Bool>,
 }
 
-export let inputsNew = (): InputsFrame => ({
+export let inputsNew = (): InputsFrame => (EDITOR ? {
+    mouseAccX: 0,
+    mouseAccY: 0,
+    mousePosX: 0,
+    mousePosY: 0,
+    keysDown: {},
+} : {
     mouseAccX: 0,
     mouseAccY: 0,
     keysDown: {},
@@ -26,10 +35,14 @@ document.onmousemove = (e: MouseEvent): void => {
         frame.mouseAccX += lastMouseDx = dx
         frame.mouseAccY += lastMouseDy = dy
     }
+    if (EDITOR) {
+        frame.mousePosX = e.pageX
+        frame.mousePosY = e.pageY
+    }
 }
 
 document.onmousedown = (e: MouseEvent) => {
-    if (document.pointerLockElement !== CC) {
+    if (!EDITOR && document.pointerLockElement !== CC) {
         CC.requestPointerLock()
     } else {
         frame.keysDown[e.button] = True
@@ -60,7 +73,7 @@ export let inputsConsumeFrame = (): InputsFrame => {
     frame = inputsNew()
     inputsAdd(frame, outFrame)
     frame.mouseAccX = frame.mouseAccY = 0
-    return document.pointerLockElement == CC ? outFrame : inputsNew()
+    return EDITOR || document.pointerLockElement == CC ? outFrame : inputsNew()
 }
 
 export let inputsAdd = (self: InputsFrame, other: InputsFrame): void => {
@@ -69,5 +82,9 @@ export let inputsAdd = (self: InputsFrame, other: InputsFrame): void => {
     }
     self.mouseAccX += other.mouseAccX
     self.mouseAccY += other.mouseAccY
+    if (EDITOR) {
+        self.mousePosX = other.mousePosX
+        self.mousePosY = other.mousePosY
+    }
 }
 

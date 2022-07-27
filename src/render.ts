@@ -64,7 +64,9 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
 
 mainShader = shaderCompile(main_vert, main_frag)
 skyShader = shaderCompile(sky_vert, sky_frag)
-debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
+if (EDITOR) {
+    debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
+}
 
 let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     G.bindBuffer(gl_ARRAY_BUFFER, self.vertexBuffer)
