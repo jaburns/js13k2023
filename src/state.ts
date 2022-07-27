@@ -1,22 +1,42 @@
 import { InputsFrame } from "./inputs"
-import {lerp} from "./types"
+import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, v3Add, v3Scale, Vec3, vecLerp } from "./types"
+import {worldGetFn} from "./world";
+
+declare const k_mouseSensitivity: number;
 
 export type GameState = {
     tick: number,
     yaw: number,
+    pitch_: number,
+    pos: Vec3,
 }
 
 export let gameStateNew = (): GameState => ({
     tick: 0,
     yaw: 0,
+    pitch_: 0,
+    pos: [0,0,0],
 })
 
 export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: number): GameState => ({
     tick: lerp(a.tick, b.tick, t),
     yaw: b.yaw,
+    pitch_: b.pitch_,
+    pos: vecLerp(a.pos, b.pos, t),
 })
 
-export let gameStateTick = (state: Readonly<GameState>, inputs: InputsFrame): GameState => ({
-    tick: state.tick + 1,
-    yaw: state.yaw + inputs.mouseAccX,
-})
+export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame): GameState => {
+    let state = gameStateLerp(prevState, prevState, 0)
+
+    state.tick += 1
+
+    state.yaw += inputs.mouseAccX * k_mouseSensitivity
+    state.pitch_ += inputs.mouseAccY * k_mouseSensitivity
+
+    let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch_)), [0,0,-1])
+    state.pos = v3Add(state.pos, v3Scale(lookVec, 0.01))
+
+    console.log(worldGetFn()(state.pos))
+
+    return state
+}

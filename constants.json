@@ -1,5 +1,6 @@
 {
     "k_tickMillis": "33",
     "k_pixelSize": "2",
-    "k_texSize": "128"
+    "k_texSize": "32",
+    "k_mouseSensitivity": "0.005"
 }

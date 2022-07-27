@@ -24,9 +24,6 @@ let curState = gameStateNew()
 let resize = () =>
     G.viewport(0, 0, CC.width=window.innerWidth/k_pixelSize, CC.height=window.innerHeight/k_pixelSize)
 
-window.onresize = resize
-resize()
-
 let accTime = 0
 let prevNow = 0
 let accTickInputs = inputsNew()
@@ -63,4 +60,7 @@ let frame = () => {
     }
 }
 
+window.onresize = resize
+
+resize()
 frame()

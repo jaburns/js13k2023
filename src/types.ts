@@ -50,6 +50,41 @@ export let m4Perspective = (aspect: number, near: number, far: number): Mat4 => 
     0, 0, (2 * far * near) / (near - far), 0
 ]
 
+let c, s;
+export let m4RotX = (rads: number): Mat4 => (
+    c = Math.cos(rads), s = Math.sin(rads),
+    [
+         1, 0, 0, 0,
+         0, c, s, 0,
+         0,-s, c, 0,
+         0, 0, 0, 1
+    ]
+)
+export let m4RotY = (rads: number): Mat4 => (
+    c = Math.cos(rads), s = Math.sin(rads),
+    [
+         c, 0, s, 0,
+         0, 1, 0, 0,
+        -s, 0, c, 0,
+         0, 0, 0, 1
+    ]
+)
+export let m4RotZ = (rads: number): Mat4 => (
+    c = Math.cos(rads), s = Math.sin(rads),
+    [
+         c, s, 0, 0,
+        -s, c, 0, 0,
+         0, 0, 1, 0,
+         0, 0, 0, 1
+    ]
+)
+export let m4Translate = ([x,y,z]: Vec3): Mat4 => [
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    x, y, z, 1
+]
+
 export let m4Mul = (a: Mat4, b: Mat4): Mat4 => {
     let result = []
     for (let x = 0; x < 16; ++x) {
@@ -58,3 +93,12 @@ export let m4Mul = (a: Mat4, b: Mat4): Mat4 => {
     }
     return result as any
 }
+
+export let m4MulPoint = (m: Mat4, [x,y,z]: Vec3): Vec3 => (
+    s = m[3]*x + m[7]*y + m[11]*z + m[15], s = s || 1,
+    [
+        (m[0] * x + m[4] * y + m[8] * z + m[12]) / s,
+        (m[1] * x + m[5] * y + m[9] * z + m[13]) / s,
+        (m[2] * x + m[6] * y + m[10] * z + m[14]) / s
+    ]
+)

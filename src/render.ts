@@ -1,14 +1,19 @@
-import {modelGeoDraw} from "./geo"
-import { gl_CULL_FACE, gl_DEPTH_TEST, gl_FRAGMENT_SHADER, gl_LEQUAL, gl_LINEAR, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE1, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER, gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_UNSIGNED_BYTE, gl_VERTEX_SHADER } from "./glConsts"
+import {
+    gl_ARRAY_BUFFER, gl_CULL_FACE, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_FRAGMENT_SHADER, gl_LEQUAL,
+    gl_LINEAR, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER,
+    gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_TRIANGLES, gl_UNSIGNED_BYTE, gl_UNSIGNED_SHORT, gl_VERTEX_SHADER
+} from "./glConsts"
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
-import { m4Mul, m4Perspective, Mat4 } from "./types"
-import { worldGetGeo, worldGetSky } from "./world"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Sub } from "./types"
+import { worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
 import { tttTextures } from "./textures"
+import {ModelGeo} from "./csg"
 
 declare const DEBUG: boolean
 declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
+declare const k_mouseSensitivity: number
 
 let mainShader: WebGLProgram
 let skyShader: WebGLProgram
@@ -52,33 +57,66 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     G.attachShader(shader, vs)
     G.attachShader(shader, fs)
     G.linkProgram(shader)
-    G.deleteShader(fs)
-    G.deleteShader(vs)
+    //G.deleteShader(fs)
+    //G.deleteShader(vs)
     return shader
 }
 
+mainShader = shaderCompile(main_vert, main_frag)
+skyShader = shaderCompile(sky_vert, sky_frag)
+
+let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
+    G.bindBuffer(gl_ARRAY_BUFFER, self.vertexBuffer)
+    let posLoc = G.getAttribLocation(shaderProg, 'a_position')
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+
+    G.bindBuffer(gl_ARRAY_BUFFER, self.normalBuffer)
+    posLoc = G.getAttribLocation(shaderProg, 'a_normal')
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+
+    G.bindBuffer(gl_ARRAY_BUFFER, self.uvTagBuffer)
+    posLoc = G.getAttribLocation(shaderProg, 'a_uvTag')
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+
+    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.indexBuffer)
+    G.drawElements(gl_TRIANGLES, self.indexBufferLen, gl_UNSIGNED_SHORT, 0)
+}
+
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
-    let predictedYaw = earlyInputs.mouseAccX + state.yaw
+    let predictedYaw = earlyInputs.mouseAccX * k_mouseSensitivity + state.yaw
+    let predictedPitch = earlyInputs.mouseAccY * k_mouseSensitivity + state.pitch_
 
-    let c = Math.cos(predictedYaw / 100)
-    let s = Math.sin(predictedYaw / 100)
+    let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-3])
 
-    let mv: Mat4 = [
-         c, 0, s, 0,
-         0, 1, 0, 0,
-        -s, 0, c, 0,
-         0,-2 + Math.sin(state.tick / 100),-5, 1
-    ]
-    let ppp = m4Perspective(
+    let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
+    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, state.pos)))
+    let projectionMat = m4Perspective(
         CC.width / CC.height,
         0.1,
         1000
     )
-    let mvp = m4Mul(ppp, mv)
+    let modelMat = m4Translate(state.pos)
+    let mvp: Mat4
+
+    // Player
+    mvp = m4Mul(projectionMat, m4Mul(viewMat, modelMat))
     G.useProgram(mainShader)
-
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
+    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
+        G.activeTexture(gl_TEXTURE0 + i),
+        G.bindTexture(gl_TEXTURE_2D, tex),
+        i
+    )))
+    G.enable(gl_CULL_FACE)
+    modelGeoDraw(worldGetPlayer(), mainShader)
 
+    // World
+    mvp = m4Mul(projectionMat, viewMat)
+    G.useProgram(mainShader)
+    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
     G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
         G.activeTexture(gl_TEXTURE0 + i),
         G.bindTexture(gl_TEXTURE_2D, tex),
@@ -87,27 +125,9 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.enable(gl_CULL_FACE)
     modelGeoDraw(worldGetGeo(), mainShader)
 
+    // Skybox
     G.useProgram(skyShader)
-    G.activeTexture(gl_TEXTURE0)
-    G.bindTexture(gl_TEXTURE_2D, textures[0])
-    G.activeTexture(gl_TEXTURE1)
-    G.bindTexture(gl_TEXTURE_2D, textures[1])
-    mv = [
-         c, 0, s, 0,
-         0, 1, 0, 0,
-        -s, 0, c, 0,
-         0, 0, 0, 1
-    ]
-    ppp = m4Perspective(
-        CC.width / CC.height,
-        0.1,
-        1000
-    )
-    mvp = m4Mul(ppp, mv)
-    G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, mvp)
+    G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
     G.disable(gl_CULL_FACE)
     modelGeoDraw(worldGetSky(), skyShader)
 }
-
-mainShader = shaderCompile(main_vert, main_frag)
-skyShader = shaderCompile(sky_vert, sky_frag)

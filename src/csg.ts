@@ -1,5 +1,8 @@
 // From https://github.com/evanw/csg.js
+import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
 import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2 } from "./types"
+
+declare const G: WebGLRenderingContext;
 
 const CSG_PLANE_EPSILON = 1e-5
 
@@ -274,7 +277,15 @@ let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
 
 export type SdfFunction = (pos: Vec3) => number
 
-export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], number[], SdfFunction] => {
+export type ModelGeo = {
+    indexBuffer: WebGLBuffer,
+    indexBufferLen: number,
+    vertexBuffer: WebGLBuffer,
+    normalBuffer: WebGLBuffer,
+    uvTagBuffer: WebGLBuffer
+}
+
+export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let vertexBuf: number[] = []
     let normalBuf: number[] = []
     let uvTagBuf: number[] = []
@@ -297,18 +308,30 @@ export let csgSolidBake = (self: CsgSolid): [number[], number[], number[], numbe
         }
     })
 
-    return [indexBuf, vertexBuf, normalBuf, uvTagBuf, sdfFunc]
-}
+    let index = G.createBuffer()!
+    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, index)
+    G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(indexBuf), gl_STATIC_DRAW)
 
-/*
-SDF
+    let vertex = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, vertex)
+    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(vertexBuf), gl_STATIC_DRAW)
 
-// a, b positive in air signed distances
-float union_(float a, float b) {
-    return max(min(a, b), 0.) - length(min(vec2(a, b), vec2(0,0)));
-}
-float subtract(float a, float b) {
-    return min(max(a, -b), 0.) + length(max(vec2(a, -b), vec2(0)));
-}
-*/
+    let normal = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, normal)
+    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(normalBuf), gl_STATIC_DRAW)
 
+    let uv = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, uv)
+    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(uvTagBuf), gl_STATIC_DRAW)
+
+    return [
+        {
+            indexBuffer: index,
+            indexBufferLen: indexBuf.length,
+            vertexBuffer: vertex,
+            normalBuffer: normal,
+            uvTagBuffer: uv,
+        },
+        sdfFunc
+    ]
+}

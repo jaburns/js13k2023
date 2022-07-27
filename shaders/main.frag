@@ -5,12 +5,12 @@ precision highp float;
 varying vec3 v_normal;
 varying vec3 v_uvTag;
 
-uniform sampler2D u_tex[2];
+uniform sampler2D u_tex[3];
 
 vec3 i_samp() {
-    vec2 uv = 0.2*v_uvTag.xy;
+    vec2 uv = v_uvTag.xy;
     int tag = int(v_uvTag.z+.5);
-    return (tag == 0 ? texture2D(u_tex[0], uv)
+    return (tag == 0 ? texture2D(u_tex[2], uv)
         : texture2D(u_tex[1], uv)).xyz;
 }
 
