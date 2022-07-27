@@ -1,3 +1,4 @@
+import { editorTick, editorRender } from './editor'
 import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
 import { renderGame } from './render'
 import { gameStateLerp, gameStateNew, gameStateTick } from './state'
@@ -6,6 +7,7 @@ import { sndOllie, zzfxP } from './zzfx'
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
+declare const EDITOR: boolean
 declare const k_tickMillis: number
 declare const k_pixelSize: number
 
@@ -45,15 +47,23 @@ let frame = () => {
     while (accTime > k_tickMillis) {
         didRunTick = True
         accTime -= k_tickMillis
-        prevState = curState
-        curState = gameStateTick(curState, accTickInputs)
+        //if (EDITOR) {
+        //    editorTick()
+        //} else {
+            prevState = curState
+            curState = gameStateTick(curState, accTickInputs)
+        //}
         accTickInputs.mouseAccX = accTickInputs.mouseAccY = 0
     }
     if (didRunTick) {
         accTickInputs = inputsNew()
     }
 
-    renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
+    //if (EDITOR) {
+    //    editorRender()
+    //} else {
+        renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
+    //}
 
     if (Math.random() < 0.01) {
         zzfxP(sndOllie)

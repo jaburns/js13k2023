@@ -6,7 +6,8 @@ const ShapeShifter = require('regpack/shapeShifter')
 const advzipPath = require('advzip-bin')
 const constantsJson = require('./constants.json')
 
-const DEBUG = process.argv.indexOf('--debug') >= 0
+const EDITOR = process.argv.indexOf('--editor') >= 0
+const DEBUG = EDITOR || process.argv.indexOf('--debug') >= 0
 const NO_ROADROLLER = process.argv.indexOf('--no-roadroller') >= 0
 const MONO_RUN = process.platform === 'win32' ? '' : 'mono ';
 
@@ -34,7 +35,7 @@ const buildShaderExternalNamesTable = () => {
 
     sh.ls('shaders').forEach(x => {
         let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
-        idents.push(...code.match(/[uav]_[a-zA-Z0-9_]+/g))
+        idents.push(...(code.match(/[uav]_[a-zA-Z0-9_]+/g)||[]))
     })
 
     let identCounter = 0
@@ -120,7 +121,7 @@ const main = () => {
     run('tsc --outDir build')
 
     console.log('Rolling up bundle...')
-    run('rollup -c' + (DEBUG ? ' --config-debug' : ''))
+    run('rollup -c' + (EDITOR ? ' --config-editor' : DEBUG ? ' --config-debug' : ''))
 
     let x = fs.readFileSync('build/bundle.js', 'utf8');
 

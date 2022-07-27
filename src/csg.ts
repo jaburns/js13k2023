@@ -3,6 +3,7 @@ import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glCo
 import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3Scale, v3Add } from "./types"
 
 declare const G: WebGLRenderingContext;
+declare const EDITOR: boolean;
 
 const CSG_PLANE_EPSILON = 1e-5
 
@@ -201,6 +202,7 @@ const F_SPHERE    = 'e'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
+    lineViewPolys?: CsgPolygon[],
     sdf: string
 }
 
@@ -214,7 +216,12 @@ export let csgSolidOpUnion = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
     csgNodeClipTo(b, a)
     csgNodeInvert(b)
     csgNodeBuild(a, csgNodeAllPolygons(b))
-    return {
+    return EDITOR ? {
+        polys: csgNodeAllPolygons(a),
+        lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
+                .concat(solidB.lineViewPolys || solidB.polys.map(x => ((x as any).tag = 0,x))),
+        sdf: `${F_UNION}(${solidA.sdf},${solidB.sdf})`,
+    } : {
         polys: csgNodeAllPolygons(a),
         sdf: `${F_UNION}(${solidA.sdf},${solidB.sdf})`,
     }
@@ -232,7 +239,12 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     csgNodeInvert(b)
     csgNodeBuild(a, csgNodeAllPolygons(b))
     csgNodeInvert(a)
-    return {
+    return EDITOR ? {
+        polys: csgNodeAllPolygons(a),
+        lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
+                .concat((solidB.lineViewPolys || solidB.polys).map(x => ((x as any).tag = 1,x))),
+        sdf: `${F_SUBTRACT}(${solidA.sdf},${solidB.sdf})`,
+    } : {
         polys: csgNodeAllPolygons(a),
         sdf: `${F_SUBTRACT}(${solidA.sdf},${solidB.sdf})`,
     }
@@ -318,12 +330,21 @@ let sdfSphere = (p: Vec3, center: Vec3, radius: number): number =>
 
 export type SdfFunction = (pos: Vec3) => number
 
+export type ModelLines = {
+    indexBuffer: WebGLBuffer,
+    indexBufferLen: number,
+    vertexBuffer: WebGLBuffer,
+    tagBuffer: WebGLBuffer,
+}
+
 export type ModelGeo = {
     indexBuffer: WebGLBuffer,
     indexBufferLen: number,
     vertexBuffer: WebGLBuffer,
     normalBuffer: WebGLBuffer,
     uvTagBuffer: WebGLBuffer
+
+    lines?: ModelLines,
 }
 
 export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
@@ -331,6 +352,11 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let normalBuf: number[] = []
     let uvTagBuf: number[] = []
     let indexBuf: number[] = []
+
+    let linesIndexBuf: number[] = []
+    let linesVertexBuf: number[] = []
+    let linesTagBuf: number[] = []
+
     let innerSdfFunc = new Function(
         `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE},${F_SPHERE}`,
         'return ' + self.sdf
@@ -349,6 +375,21 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
         }
     })
 
+    if (EDITOR) {
+        (self.lineViewPolys || self.polys).map(poly => {
+            let startIdx = linesVertexBuf.length / 3
+            poly.vertices.map(x => (
+                linesVertexBuf.push(...x.pos),
+                linesTagBuf.push(poly.tag)
+            ))
+            for (let i = 2; i < poly.vertices.length; i++) {
+                linesIndexBuf.push(startIdx,     startIdx+i-1)
+                linesIndexBuf.push(startIdx+i-1, startIdx+i)
+                linesIndexBuf.push(startIdx+i,   startIdx)
+            }
+        })
+    }
+
     let index = G.createBuffer()!
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, index)
     G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(indexBuf), gl_STATIC_DRAW)
@@ -365,8 +406,37 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     G.bindBuffer(gl_ARRAY_BUFFER, uv)
     G.bufferData(gl_ARRAY_BUFFER, new Float32Array(uvTagBuf), gl_STATIC_DRAW)
 
+    let linesIndex: WebGLBuffer
+    let linesVertex: WebGLBuffer
+    let linesTag: WebGLBuffer
+    if (EDITOR) {
+        linesIndex = G.createBuffer()!
+        G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, linesIndex)
+        G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(linesIndexBuf), gl_STATIC_DRAW)
+
+        linesVertex = G.createBuffer()!
+        G.bindBuffer(gl_ARRAY_BUFFER, linesVertex)
+        G.bufferData(gl_ARRAY_BUFFER, new Float32Array(linesVertexBuf), gl_STATIC_DRAW)
+
+        linesTag = G.createBuffer()!
+        G.bindBuffer(gl_ARRAY_BUFFER, linesTag)
+        G.bufferData(gl_ARRAY_BUFFER, new Float32Array(linesTagBuf), gl_STATIC_DRAW)
+    }
+
     return [
-        {
+        EDITOR ? {
+            indexBuffer: index,
+            indexBufferLen: indexBuf.length,
+            vertexBuffer: vertex,
+            normalBuffer: normal,
+            uvTagBuffer: uv,
+            lines: {
+                indexBuffer: linesIndex!,
+                indexBufferLen: linesIndexBuf.length,
+                vertexBuffer: linesVertex!,
+                tagBuffer: linesTag!,
+            }
+        } : {
             indexBuffer: index,
             indexBufferLen: indexBuf.length,
             vertexBuffer: vertex,
