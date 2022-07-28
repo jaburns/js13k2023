@@ -56,16 +56,16 @@ document.onmouseup = (e: MouseEvent) => {
 document.onkeydown = (e: KeyboardEvent) => {
     if (DEBUG) {
         if (e.repeat) return false
-        frame.keysDown[e.code] = True
+        frame.keysDown[e.code[3]] = True
         return !e.code.startsWith('Arrow') && e.code !== 'Space' && e.code !== 'Tab'
     } else {
-        frame.keysDown[e.code] = True
+        frame.keysDown[e.code[3]] = True
         return false
     }
 }
 
 document.onkeyup = (e: KeyboardEvent) => {
-    frame.keysDown[e.code] = False
+    frame.keysDown[e.code[3]] = False
 }
 
 export let inputsConsumeFrame = (): InputsFrame => {
