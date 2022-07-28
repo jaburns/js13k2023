@@ -1,5 +1,5 @@
 import { InputsFrame } from "./inputs"
-import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, Null, v3Add, v3Mul, v3Scale, v3Sub, Vec3, vecLerp } from "./types"
+import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, Null, v3Add, v3AddScale, v3Mul, Vec3, vecLerp } from "./types"
 import {worldRaycast} from "./world";
 
 declare const k_mouseSensitivity: number;
@@ -46,16 +46,16 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     let moveVec: Vec3 = [0,0,0]
 
     if (inputs.keysDown['W']) {
-        moveVec = v3Add(moveVec, v3Scale(lookVec, 0.01))
+        moveVec = v3AddScale(moveVec, lookVec, 0.01)
     }
     if (inputs.keysDown['S']) {
-        moveVec = v3Sub(moveVec, v3Scale(lookVec, 0.01))
+        moveVec = v3AddScale(moveVec, lookVec, -0.01)
     }
     if (inputs.keysDown['D']) {
-        moveVec = v3Add(moveVec, v3Scale(strafeVec, 0.01))
+        moveVec = v3AddScale(moveVec, strafeVec, 0.01)
     }
     if (inputs.keysDown['A']) {
-        moveVec = v3Sub(moveVec, v3Scale(strafeVec, 0.01))
+        moveVec = v3AddScale(moveVec, strafeVec, -0.01)
     }
     state.vel = v3Add(state.vel, moveVec)
     state.vel = v3Add(state.vel, [0,-0.01,0])

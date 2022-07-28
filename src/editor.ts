@@ -3,7 +3,7 @@ import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_B
 import { InputsFrame } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import {debugLines_frag, debugLines_vert, main_frag, main_vert} from "./shaders.gen"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Cross, v3Negate, v3Scale, v3Sub, Vec3 } from "./types"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Cross, v3Negate, v3Sub, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo } from "./world"
 
 declare const CC: HTMLCanvasElement
@@ -47,24 +47,24 @@ let update = (dt: number, inputs: InputsFrame): void => {
     let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
     let riseVec = v3Cross(lookVec, strafeVec)
     let moveVec: Vec3 = [0,0,0]
-    if (inputs.keysDown['W']) {
-        moveVec = v3Add(moveVec, v3Scale(lookVec, 0.01*dt))
-    }
-    if (inputs.keysDown['S']) {
-        moveVec = v3Sub(moveVec, v3Scale(lookVec, 0.01*dt))
-    }
-    if (inputs.keysDown['D']) {
-        moveVec = v3Add(moveVec, v3Scale(strafeVec, 0.01*dt))
-    }
-    if (inputs.keysDown['A']) {
-        moveVec = v3Sub(moveVec, v3Scale(strafeVec, 0.01*dt))
-    }
-    if (inputs.keysDown['f']) {
-        moveVec = v3Add(moveVec, v3Scale(riseVec, 0.01*dt))
-    }
-    if (inputs.keysDown['c']) {
-        moveVec = v3Sub(moveVec, v3Scale(riseVec, 0.01*dt))
-    }
+//    if (inputs.keysDown['W']) {
+//        moveVec = v3Add(moveVec, v3Scale(lookVec, 0.01*dt))
+//    }
+//    if (inputs.keysDown['S']) {
+//        moveVec = v3Sub(moveVec, v3Scale(lookVec, 0.01*dt))
+//    }
+//    if (inputs.keysDown['D']) {
+//        moveVec = v3Add(moveVec, v3Scale(strafeVec, 0.01*dt))
+//    }
+//    if (inputs.keysDown['A']) {
+//        moveVec = v3Sub(moveVec, v3Scale(strafeVec, 0.01*dt))
+//    }
+//    if (inputs.keysDown['f']) {
+//        moveVec = v3Add(moveVec, v3Scale(riseVec, 0.01*dt))
+//    }
+//    if (inputs.keysDown['c']) {
+//        moveVec = v3Sub(moveVec, v3Scale(riseVec, 0.01*dt))
+//    }
 
     if (inputs.keysDown['P']) {
         evaluateNewWorld([
@@ -74,7 +74,7 @@ let update = (dt: number, inputs: InputsFrame): void => {
         ])
     }
 
-    state.pos = v3Add(state.pos, moveVec)
+//    state.pos = v3Add(state.pos, moveVec)
 }
 
 let render = (): void => {

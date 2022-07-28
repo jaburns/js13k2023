@@ -1,6 +1,6 @@
-import { CsgSolid, csgSolidBake, csgSolidCube, csgSolidOpSubtract, csgSolidOpUnion, csgSolidSphere, modelGeoDelete, SdfFunction } from "./csg"
+import { CsgSolid, csgSolidBake, csgSolidCube, csgSolidOpSubtract, csgSolidOpUnion, csgSolidSphere, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
-import { Null, v3Add, v3Normalize, v3Scale, v3Sub, Vec3 } from "./types"
+import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 declare const EDITOR: boolean;
 
@@ -30,7 +30,7 @@ export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, 
         if (dist < eps) {
             return [marchPoint, worldSampleNormal(marchPoint)]
         }
-        marchPoint = v3Add(marchPoint, v3Scale(normalizedDir, dist))
+        marchPoint = v3AddScale(marchPoint, normalizedDir, dist)
     }
     return Null
 }

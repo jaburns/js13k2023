@@ -1,6 +1,6 @@
 // From https://github.com/evanw/csg.js
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3Scale, v3Add } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;
@@ -293,7 +293,7 @@ export let csgSolidSphere = (center: Vec3, radius: number, tag: number): CsgSoli
             Math.sin(theta) * Math.sin(phi),
         ],
         vertices.push({
-            pos: v3Add(center, v3Scale(normal, radius)),
+            pos: v3AddScale(center, normal, radius),
             normal,
             uv,
         })
