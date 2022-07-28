@@ -1,6 +1,6 @@
 // From https://github.com/evanw/csg.js
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, Mat4, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;
@@ -8,7 +8,7 @@ declare const EDITOR: boolean;
 const CSG_PLANE_EPSILON = 1e-5
 
 let v3Scratch: Vec3
-let v3Zero: Vec3 = [0,0,0]
+let m4Scratch: Mat4
 
 type CsgVertex = Readonly<{
     pos: Vec3,
@@ -250,7 +250,7 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
-export let csgSolidCube = (center: Vec3, radius: Vec3, tag: number): CsgSolid => ({
+export let csgSolidCube = (tag: number, center: Vec3, radius: Vec3, yaw: number, pitch: number, roll: number): CsgSolid => ({
     polys: [
         [[0, 4, 6, 2], [-1, 0, 0]],
         [[1, 3, 7, 5], [ 1, 0, 0]],
@@ -260,13 +260,15 @@ export let csgSolidCube = (center: Vec3, radius: Vec3, tag: number): CsgSolid =>
         [[4, 5, 7, 6], [ 0, 0, 1]]
     ].map(info => csgPolygonNew(
         info[0].map(i => (
+            m4Scratch = m4Mul(m4Mul(m4RotY(yaw), m4RotX(pitch)), m4RotZ(roll)),
             v3Scratch = [
-                center[0] + radius[0] * (2 * (!!(i & 1) as any) - 1),
-                center[1] + radius[1] * (2 * (!!(i & 2) as any) - 1),
-                center[2] + radius[2] * (2 * (!!(i & 4) as any) - 1)
-            ], {
-                pos: v3Scratch,
-                normal: info[1] as any as Vec3,
+                radius[0] * (2 * (!!(i & 1) as any) - 1),
+                radius[1] * (2 * (!!(i & 2) as any) - 1),
+                radius[2] * (2 * (!!(i & 4) as any) - 1)
+            ],
+            {
+                pos: v3Add(center, m4MulPoint(m4Scratch, v3Scratch)),
+                normal: m4MulPoint(m4Scratch, info[1] as any as Vec3),
                 uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
                     : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
                     : [v3Scratch[0],v3Scratch[1]]
@@ -277,7 +279,7 @@ export let csgSolidCube = (center: Vec3, radius: Vec3, tag: number): CsgSolid =>
     sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
 })
 
-export let csgSolidSphere = (center: Vec3, radius: number, tag: number): CsgSolid => {
+export let csgSolidSphere = (tag: number, center: Vec3, radius: number): CsgSolid => {
     const stacks = 16, slices = 2 * stacks
     let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
@@ -322,7 +324,7 @@ let sdfSubtract = (a: number, b: number): number =>
 
 let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
     v3Scratch = v3Sub(v3Abs(v3Sub(p, center)), radius),
-    v3Length(v3Max(v3Scratch, v3Zero)) + Math.min(Math.max(...v3Scratch), 0)
+    v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0)
 )
 
 let sdfSphere = (p: Vec3, center: Vec3, radius: number): number =>

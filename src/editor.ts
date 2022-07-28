@@ -1,9 +1,9 @@
 import { ModelGeo } from "./csg"
-import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
+import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
 import { InputsFrame } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import {debugLines_frag, debugLines_vert, main_frag, main_vert} from "./shaders.gen"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Cross, v3Negate, v3Sub, Vec3 } from "./types"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Negate, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo } from "./world"
 
 declare const CC: HTMLCanvasElement
@@ -25,10 +25,32 @@ let state: EditorState = {
 
 let mainShader: WebGLProgram
 let debugLinesShader: WebGLProgram
+let source: HTMLTextAreaElement
 
 export let editorInit = (): void => {
     mainShader = shaderCompile(main_vert, main_frag)
     debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
+
+    source = document.createElement('textarea')
+    source.style.zIndex = '10'
+    source.style.position = 'absolute'
+    source.style.left = '0px'
+    source.style.top = '0px'
+    source.style.width = '25%'
+    source.style.height = '50%'
+
+    source.value =
+`['cube',0,[0,-10,0],[100,10,100],.75,.1,0],
+'union',
+['sphere',1,[0,0,0],5]`
+
+    source.onkeydown = (e: KeyboardEvent): void => {
+        if (e.code === 'Enter' && e.ctrlKey) {
+            new Function('fn', `fn([${source.value}])`)(evaluateNewWorld)
+        }
+    }
+
+    document.body.appendChild(source)
 }
 
 export let editorFrame = (dt: number, inputs: InputsFrame): void => {
@@ -47,34 +69,25 @@ let update = (dt: number, inputs: InputsFrame): void => {
     let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
     let riseVec = v3Cross(lookVec, strafeVec)
     let moveVec: Vec3 = [0,0,0]
-//    if (inputs.keysDown['W']) {
-//        moveVec = v3Add(moveVec, v3Scale(lookVec, 0.01*dt))
-//    }
-//    if (inputs.keysDown['S']) {
-//        moveVec = v3Sub(moveVec, v3Scale(lookVec, 0.01*dt))
-//    }
-//    if (inputs.keysDown['D']) {
-//        moveVec = v3Add(moveVec, v3Scale(strafeVec, 0.01*dt))
-//    }
-//    if (inputs.keysDown['A']) {
-//        moveVec = v3Sub(moveVec, v3Scale(strafeVec, 0.01*dt))
-//    }
-//    if (inputs.keysDown['f']) {
-//        moveVec = v3Add(moveVec, v3Scale(riseVec, 0.01*dt))
-//    }
-//    if (inputs.keysDown['c']) {
-//        moveVec = v3Sub(moveVec, v3Scale(riseVec, 0.01*dt))
-//    }
-
-    if (inputs.keysDown['P']) {
-        evaluateNewWorld([
-            { solid: 'cube', center: [0,-10,0], radius: [100,10,100], tag: 0 },
-            'union',
-            { solid: 'sphere', center: [0,0,0], radius: 5, tag: 1 },
-        ])
+    if (inputs.keysDown['W']) {
+        moveVec = v3AddScale(moveVec, lookVec, 0.01*dt)
     }
-
-//    state.pos = v3Add(state.pos, moveVec)
+    if (inputs.keysDown['S']) {
+        moveVec = v3AddScale(moveVec, lookVec, -0.01*dt)
+    }
+    if (inputs.keysDown['D']) {
+        moveVec = v3AddScale(moveVec, strafeVec, 0.01*dt)
+    }
+    if (inputs.keysDown['A']) {
+        moveVec = v3AddScale(moveVec, strafeVec, -0.01*dt)
+    }
+    if (inputs.keysDown['f']) {
+        moveVec = v3AddScale(moveVec, riseVec, 0.01*dt)
+    }
+    if (inputs.keysDown['c']) {
+        moveVec = v3AddScale(moveVec, riseVec, -0.01*dt)
+    }
+    state.pos = v3Add(state.pos, moveVec)
 }
 
 let render = (): void => {

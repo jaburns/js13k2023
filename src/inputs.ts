@@ -57,7 +57,7 @@ document.onkeydown = (e: KeyboardEvent) => {
     if (DEBUG) {
         if (e.repeat) return false
         frame.keysDown[e.code[3]] = True
-        return !e.code.startsWith('Arrow') && e.code !== 'Space' && e.code !== 'Tab'
+        return true
     } else {
         frame.keysDown[e.code[3]] = True
         return false

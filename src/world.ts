@@ -4,12 +4,12 @@ import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 declare const EDITOR: boolean;
 
-let mesh0 = csgSolidCube([0,-10,0], [100,10,100], 0)
-let mesh1 = csgSolidSphere([0,0,0], 5, 1)
+let mesh0 = csgSolidCube(0, [0,-10,0], [100,10,100], 0,0,0)
+let mesh1 = csgSolidSphere(1, [0,0,0], 5)
 let [worldGeo, worldFn] = csgSolidBake(csgSolidOpSubtract(mesh0, mesh1))
 
-let skyboxGeo = csgSolidBake(csgSolidCube([0,0,0], [1,1,1], 0))[0]
-let playerGeo = csgSolidBake(csgSolidSphere([0,1,0], 1, 2))[0]
+let skyboxGeo = csgSolidBake(csgSolidCube(0, [0,0,0], [1,1,1], 0,0,0))[0]
+let playerGeo = csgSolidBake(csgSolidSphere(2, [0,1,0], 1))[0]
 
 export let worldGetGeo = (): ModelGeo => worldGeo
 export let worldGetSky = (): ModelGeo => skyboxGeo
@@ -36,16 +36,16 @@ export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, 
 }
 
 export type WorldDefSolid =
-    { solid: 'cube', center: Vec3, radius: Vec3, tag: number }
-  | { solid: 'sphere', center: Vec3, radius: number, tag: number }
+    ['cube',   number, Vec3, Vec3, number, number, number ]
+  | ['sphere', number, Vec3, number ]
 export type WorldDefOp = 'union' | 'subtract'
 export type WorldDefItem = WorldDefSolid | WorldDefOp
 export type WorldDef = WorldDefItem[]
 
 let evaluateWorldDefSolid = (def: WorldDefSolid): CsgSolid => {
-    switch (def.solid) {
-        case 'cube': return csgSolidCube(def.center, def.radius, def.tag)
-        case 'sphere': return csgSolidSphere(def.center, def.radius, def.tag)
+    switch (def[0]) {
+        case 'cube': return csgSolidCube(def[1], def[2], def[3], def[4], def[5], def[6])
+        case 'sphere': return csgSolidSphere(def[1], def[2], def[3])
         default: throw new Error()
     }
 }
