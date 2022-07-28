@@ -1,4 +1,4 @@
-import { editorTick, editorRender } from './editor'
+import { editorInit, editorFrame } from './editor'
 import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
 import { renderGame } from './render'
 import { gameStateLerp, gameStateNew, gameStateTick } from './state'
@@ -35,7 +35,7 @@ let frame = () => {
 
     let newNow = performance.now()
     if (!prevNow) prevNow = newNow
-    let dt = Math.min (newNow - prevNow, 1000)
+    let dt = Math.min(newNow - prevNow, 1000)
     let frameInputs = inputsConsumeFrame()
     let didRunTick = False
 
@@ -44,30 +44,32 @@ let frame = () => {
 
     inputsAdd(accTickInputs, frameInputs)
 
+    if (EDITOR) {
+        editorFrame(dt, accTickInputs)
+        accTickInputs = inputsNew()
+        return
+    }
+
     while (accTime > k_tickMillis) {
         didRunTick = True
         accTime -= k_tickMillis
-        //if (EDITOR) {
-        //    editorTick()
-        //} else {
-            prevState = curState
-            curState = gameStateTick(curState, accTickInputs)
-        //}
+        prevState = curState
+        curState = gameStateTick(curState, accTickInputs)
         accTickInputs.mouseAccX = accTickInputs.mouseAccY = 0
     }
     if (didRunTick) {
         accTickInputs = inputsNew()
     }
 
-    //if (EDITOR) {
-    //    editorRender()
-    //} else {
-        renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
-    //}
+    renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
 
     if (Math.random() < 0.01) {
         zzfxP(sndOllie)
     }
+}
+
+if (EDITOR) {
+    editorInit()
 }
 
 window.onresize = resize

@@ -1,9 +1,9 @@
 import {
     gl_ARRAY_BUFFER, gl_CULL_FACE, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_FRAGMENT_SHADER, gl_LEQUAL,
-    gl_LINEAR, gl_LINES, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER,
+    gl_LINEAR, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER,
     gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_TRIANGLES, gl_UNSIGNED_BYTE, gl_UNSIGNED_SHORT, gl_VERTEX_SHADER
 } from "./glConsts"
-import { main_frag, main_vert, sky_frag, sky_vert, debugLines_frag, debugLines_vert } from "./shaders.gen"
+import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
 import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Sub } from "./types"
 import { worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
@@ -11,16 +11,11 @@ import { tttTextures } from "./textures"
 import { ModelGeo } from "./csg"
 
 declare const DEBUG: boolean
-declare const EDITOR: boolean
 declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
 declare const k_mouseSensitivity: number
 
-let mainShader: WebGLProgram
-let skyShader: WebGLProgram
-let debugLinesShader: WebGLProgram
-
-let textures: WebGLTexture[] = tttTextures.map(canvas => {
+export let textures: WebGLTexture[] = tttTextures.map(canvas => {
     let tex = G.createTexture()!
     G.bindTexture(gl_TEXTURE_2D, tex)
     G.texImage2D(gl_TEXTURE_2D, 0, gl_RGBA, gl_RGBA, gl_UNSIGNED_BYTE, canvas)
@@ -36,7 +31,7 @@ let textures: WebGLTexture[] = tttTextures.map(canvas => {
 G.enable(gl_DEPTH_TEST)
 G.depthFunc(gl_LEQUAL)
 
-let shaderCompile = (vert: string, frag: string): WebGLProgram => {
+export let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     let vs = G.createShader(gl_VERTEX_SHADER)!
     let fs = G.createShader(gl_FRAGMENT_SHADER)!
     let shader = G.createProgram()!
@@ -62,13 +57,10 @@ let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     return shader
 }
 
-mainShader = shaderCompile(main_vert, main_frag)
-skyShader = shaderCompile(sky_vert, sky_frag)
-if (EDITOR) {
-    debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
-}
+let mainShader = shaderCompile(main_vert, main_frag)
+let skyShader = shaderCompile(sky_vert, sky_frag)
 
-let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
+export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     G.bindBuffer(gl_ARRAY_BUFFER, self.vertexBuffer)
     let posLoc = G.getAttribLocation(shaderProg, 'a_position')
     G.enableVertexAttribArray(posLoc)
@@ -88,26 +80,11 @@ let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     G.drawElements(gl_TRIANGLES, self.indexBufferLen, gl_UNSIGNED_SHORT, 0)
 }
 
-let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
-    G.bindBuffer(gl_ARRAY_BUFFER, self.lines!.vertexBuffer)
-    let posLoc = G.getAttribLocation(shaderProg, 'a_position')
-    G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
-
-    G.bindBuffer(gl_ARRAY_BUFFER, self.lines!.tagBuffer)
-    posLoc = G.getAttribLocation(shaderProg, 'a_tag')
-    G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 1, gl_FLOAT, false, 0, 0)
-
-    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.lines!.indexBuffer)
-    G.drawElements(gl_LINES, self.lines!.indexBufferLen, gl_UNSIGNED_SHORT, 0)
-}
-
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
     let predictedYaw = earlyInputs.mouseAccX * k_mouseSensitivity + state.yaw
     let predictedPitch = earlyInputs.mouseAccY * k_mouseSensitivity + state.pitch_
     predictedPitch = Math.max(-1.5, Math.min(1.5, predictedPitch))
-    let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-10])
+    let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-state.camBack])
 
     let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
     let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, [0,2,0]))))
@@ -147,14 +124,4 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
     modelGeoDraw(worldGetSky(), skyShader)
     G.enable(gl_CULL_FACE)
-
-    // World lines
-    if (EDITOR) {
-        G.disable(gl_DEPTH_TEST)
-        mvp = m4Mul(projectionMat, viewMat)
-        G.useProgram(debugLinesShader)
-        G.uniformMatrix4fv(G.getUniformLocation(debugLinesShader, 'u_mvp'), false, mvp)
-        modelGeoDrawLines(worldGetGeo(), debugLinesShader)
-        G.enable(gl_DEPTH_TEST)
-    }
 }
