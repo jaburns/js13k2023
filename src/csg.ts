@@ -446,3 +446,17 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
         sdfFunc
     ]
 }
+
+export let modelGeoDelete = (geo: ModelGeo): void => {
+    if (!EDITOR) return;
+
+    G.deleteBuffer(geo.indexBuffer)
+    G.deleteBuffer(geo.vertexBuffer)
+    G.deleteBuffer(geo.normalBuffer)
+    G.deleteBuffer(geo.uvTagBuffer)
+    if (geo.lines) {
+        G.deleteBuffer(geo.lines.indexBuffer)
+        G.deleteBuffer(geo.lines.vertexBuffer)
+        G.deleteBuffer(geo.lines.tagBuffer)
+    }
+}

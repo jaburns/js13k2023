@@ -4,7 +4,7 @@ import { InputsFrame } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import {debugLines_frag, debugLines_vert, main_frag, main_vert} from "./shaders.gen"
 import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Cross, v3Negate, v3Scale, v3Sub, Vec3 } from "./types"
-import { worldGetGeo } from "./world"
+import { evaluateNewWorld, worldGetGeo } from "./world"
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
@@ -65,6 +65,15 @@ let update = (dt: number, inputs: InputsFrame): void => {
     if (inputs.keysDown['c']) {
         moveVec = v3Sub(moveVec, v3Scale(riseVec, 0.01*dt))
     }
+
+    if (inputs.keysDown['P']) {
+        evaluateNewWorld([
+            { solid: 'cube', center: [0,-10,0], radius: [100,10,100], tag: 0 },
+            'union',
+            { solid: 'sphere', center: [0,0,0], radius: 5, tag: 1 },
+        ])
+    }
+
     state.pos = v3Add(state.pos, moveVec)
 }
 
