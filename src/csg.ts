@@ -281,8 +281,7 @@ export let csgSolidCube = (
         )),
         tag
     )),
-    // TODO SDF is incorrect for rotated boxes
-    sdf: `${F_CUBE}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}])`
+    sdf: `${F_CUBE}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}],${yaw},${pitch},${roll})`
 })
 
 export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, radius: number): CsgSolid => {
@@ -328,8 +327,8 @@ let sdfUnion = (a: number, b: number): number =>
 let sdfSubtract = (a: number, b: number): number =>
     Math.min(Math.max(a,-b),0)+Math.hypot(Math.max(a,0),Math.max(-b,0))
 
-let sdfCube = (p: Vec3, center: Vec3, radius: Vec3): number => (
-    v3Scratch = v3Sub(v3Abs(v3Sub(p, center)), radius),
+let sdfCube = (p: Vec3, center: Vec3, radius: Vec3, yaw: number, pitch: number, roll: number): number => (
+    v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), radius),
     v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0)
 )
 

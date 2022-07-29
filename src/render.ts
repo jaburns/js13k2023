@@ -1,6 +1,6 @@
 import {
     gl_ARRAY_BUFFER, gl_CULL_FACE, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_FRAGMENT_SHADER, gl_LEQUAL,
-    gl_LINEAR, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER,
+    gl_NEAREST, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER,
     gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_TRIANGLES, gl_UNSIGNED_BYTE, gl_UNSIGNED_SHORT, gl_VERTEX_SHADER
 } from "./glConsts"
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
@@ -20,8 +20,8 @@ export let textures: WebGLTexture[] = tttTextures.map(canvas => {
     G.bindTexture(gl_TEXTURE_2D, tex)
     G.texImage2D(gl_TEXTURE_2D, 0, gl_RGBA, gl_RGBA, gl_UNSIGNED_BYTE, canvas)
     G.generateMipmap(gl_TEXTURE_2D)
-    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_MIN_FILTER, gl_LINEAR)
-    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_LINEAR)
+    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_MIN_FILTER, gl_NEAREST) // gl_LINEAR)
+    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_NEAREST) // gl_LINEAR)
     G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_WRAP_S, gl_REPEAT)
     G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_WRAP_T, gl_REPEAT)
     document.body.appendChild(canvas)
@@ -89,7 +89,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
     let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, [0,20,0]))))
     let projectionMat = m4Perspective(
-        CC.width / CC.height,
+        CC.height / CC.width,
         0.1,
         1000
     )

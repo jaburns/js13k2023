@@ -34,9 +34,9 @@ export let v3Cross = ([x,y,z]: Vec3, [a,b,c]: Vec3): Vec3 => [y*c - z*b, z*a - x
 export let v3Length = (x: Vec3): number => Math.sqrt(v3Dot(x, x))
 export let v3Normalize = (a: Vec3): Vec3 => v3AddScale([0,0,0], a, 1/v3Length(a))
 
-export let m4Perspective = (aspect: number, near: number, far: number): Mat4 => [
+export let m4Perspective = (invAspect: number, near: number, far: number): Mat4 => [
     // FOV = PI / 2
-    1 / aspect, 0, 0, 0,
+    invAspect, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, (far + near) / (near - far), -1,
     0, 0, (2 * far * near) / (near - far), 0

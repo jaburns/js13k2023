@@ -3,11 +3,11 @@ import { ModelGeo } from "./csg"
 import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
-let [worldGeo, worldFn] = csgSolidBake(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,1,0,0),csgSolidSphere(1,0,30,0,50)))
-export let worldSourceCode = `cube 0|0 -10 0|100 10 100|1 0 0
-sphere 1|0 30 0|50
-sub`
-// ------------------------------------------------------------------------------------
+
+let [worldGeo,worldFn]=csgSolidBake(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,45,20,0),csgSolidSphere(1,0,30,0,40)),csgSolidCube(0,0,-30,0,100,10,100,0,0,0)),csgSolidCube(2,50,15,0,10,2,100,45,20,0)))
+export let worldSourceList:[number,string[]][]=[[0,["cube","0","0","-10","0","100","10","100","45","20","0"]],[0,["sphere","1","0","30","0","40"]],[0,["sub"]],[0,["cube","0","0","-30","0","100","10","100","0","0","0"]],[0,["add"]],[0,[""]],[0,["#","Stone","path"]],[0,["cube","2","50","15","0","10","2","100","45","20","0"]],[0,["sub"]]]
+
+// ----------------------
 
 let skyboxGeo = csgSolidBake(csgSolidCube(0, 0,0,0, 1,1,1, 0,0,0))[0]
 let playerGeo = csgSolidBake(csgSolidSphere(2, 0,10,0, 10))[0]
@@ -39,20 +39,13 @@ export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, 
 // ------------------------------------------------------------------------------------
 // Everything below here gets optimized away in non-editor builds
 
-export let evaluateNewWorld = (worldCode: string): string => {
-    let compiled = worldCode
-        .split('\n')
-        .filter(x => x.trim().length > 0)
-        .map(x => '['+
-            x.replace(/\|/g,' ')
-            .trim()
-            .replace(/\s+/g, ',')
-            .replace(/([a-z]+)/g, '"$1"')
-        +']')
-        .join(',')
-
-    let asJs = new Function('fn', `return fn([${compiled}])`)(doEvalNewWorld)
-    return asJs + '\nexport let worldSourceCode = `'+worldCode+'`'
+export let evaluateNewWorld = (sourceList: [number,string[]][]): string => {
+    let justCommands = sourceList
+        .map(x => x[1])
+        .filter(x => x.length > 0 && !x[0].startsWith('#') && x[0] !== '')
+    console.log( `return fn(${JSON.stringify(justCommands)})`)
+    let asJs = new Function('fn', `return fn(${JSON.stringify(justCommands)})`)(doEvalNewWorld)
+    return asJs + '\nexport let worldSourceList:[number,string[]][]='+JSON.stringify(sourceList)+'\n'
 }
 
 type WorldDefSolid =
@@ -64,8 +57,8 @@ type WorldDef = WorldDefItem[]
 
 let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
     let result = (name: string, fn: Function): [CsgSolid, string] => [
-        fn(...def.slice(1).map((x: any) => Math.round(parseFloat(x))|0)),
-        `${name}(${def.slice(1).map((x: any) => Math.round(parseFloat(x))|0)})`
+        fn(...def.slice(1).map((x: any) => parseInt(x))),
+        `${name}(${def.slice(1).map((x: any) => parseInt(x))})`
     ]
     switch (def[0]) {
         case 'cube': return result('csgSolidCube', csgSolidCube)
