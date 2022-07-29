@@ -19,7 +19,7 @@ export let gameStateNew = (): GameState => ({
     pitch_: 0,
     pos: [0,0,0],
     vel: [0,0,0],
-    camBack: 10,
+    camBack: 100,
 })
 
 export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: number): GameState => ({
@@ -46,22 +46,22 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     let moveVec: Vec3 = [0,0,0]
 
     if (inputs.keysDown['W']) {
-        moveVec = v3AddScale(moveVec, lookVec, 0.01)
+        moveVec = v3AddScale(moveVec, lookVec, 0.1)
     }
     if (inputs.keysDown['S']) {
-        moveVec = v3AddScale(moveVec, lookVec, -0.01)
+        moveVec = v3AddScale(moveVec, lookVec, -0.1)
     }
     if (inputs.keysDown['D']) {
-        moveVec = v3AddScale(moveVec, strafeVec, 0.01)
+        moveVec = v3AddScale(moveVec, strafeVec, 0.1)
     }
     if (inputs.keysDown['A']) {
-        moveVec = v3AddScale(moveVec, strafeVec, -0.01)
+        moveVec = v3AddScale(moveVec, strafeVec, -0.1)
     }
     state.vel = v3Add(state.vel, moveVec)
-    state.vel = v3Add(state.vel, [0,-0.01,0])
+    state.vel = v3Add(state.vel, [0,-0.1,0])
     state.pos = v3Add(state.pos, state.vel)
 
-    let cast = worldRaycast(v3Add(state.pos,[0,2,0]), [0,-1,0], 2)
+    let cast = worldRaycast(v3Add(state.pos,[0,20,0]), [0,-1,0], 20)
     if (cast != Null) {
         state.pos = cast[0]
         state.vel = v3Mul(state.vel, [1,0,1])

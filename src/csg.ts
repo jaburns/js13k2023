@@ -250,7 +250,12 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
-export let csgSolidCube = (tag: number, center: Vec3, radius: Vec3, yaw: number, pitch: number, roll: number): CsgSolid => ({
+export let csgSolidCube = (
+    tag: number,
+    cx: number, cy: number, cz: number,
+    rx: number, ry: number, rz: number,
+    yaw: number, pitch: number, roll: number
+): CsgSolid => ({
     polys: [
         [[0, 4, 6, 2], [-1, 0, 0]],
         [[1, 3, 7, 5], [ 1, 0, 0]],
@@ -260,14 +265,14 @@ export let csgSolidCube = (tag: number, center: Vec3, radius: Vec3, yaw: number,
         [[4, 5, 7, 6], [ 0, 0, 1]]
     ].map(info => csgPolygonNew(
         info[0].map(i => (
-            m4Scratch = m4Mul(m4Mul(m4RotY(yaw), m4RotX(pitch)), m4RotZ(roll)),
+            m4Scratch = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI)),
             v3Scratch = [
-                radius[0] * (2 * (!!(i & 1) as any) - 1),
-                radius[1] * (2 * (!!(i & 2) as any) - 1),
-                radius[2] * (2 * (!!(i & 4) as any) - 1)
+                rx * (2 * (!!(i & 1) as any) - 1),
+                ry * (2 * (!!(i & 2) as any) - 1),
+                rz * (2 * (!!(i & 4) as any) - 1)
             ],
             {
-                pos: v3Add(center, m4MulPoint(m4Scratch, v3Scratch)),
+                pos: v3Add([cx,cy,cz], m4MulPoint(m4Scratch, v3Scratch)),
                 normal: m4MulPoint(m4Scratch, info[1] as any as Vec3),
                 uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
                     : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
@@ -276,10 +281,11 @@ export let csgSolidCube = (tag: number, center: Vec3, radius: Vec3, yaw: number,
         )),
         tag
     )),
-    sdf: `${F_CUBE}(${V_POSITION},[${center.join(',')}],[${radius.join(',')}])`
+    // TODO SDF is incorrect for rotated boxes
+    sdf: `${F_CUBE}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}])`
 })
 
-export let csgSolidSphere = (tag: number, center: Vec3, radius: number): CsgSolid => {
+export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, radius: number): CsgSolid => {
     const stacks = 16, slices = 2 * stacks
     let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
@@ -295,7 +301,7 @@ export let csgSolidSphere = (tag: number, center: Vec3, radius: number): CsgSoli
             Math.sin(theta) * Math.sin(phi),
         ],
         vertices.push({
-            pos: v3AddScale(center, normal, radius),
+            pos: v3AddScale([cz,cy,cz], normal, radius),
             normal,
             uv,
         })
@@ -312,7 +318,7 @@ export let csgSolidSphere = (tag: number, center: Vec3, radius: number): CsgSoli
     }
     return {
         polys,
-        sdf: `${F_SPHERE}(${V_POSITION},[${center.join(',')}],${radius})`
+        sdf: `${F_SPHERE}(${V_POSITION},[${cx},${cy},${cz}],${radius})`
     }
 }
 

@@ -87,7 +87,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-state.camBack])
 
     let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
-    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, [0,2,0]))))
+    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, [0,20,0]))))
     let projectionMat = m4Perspective(
         CC.width / CC.height,
         0.1,

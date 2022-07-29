@@ -2,14 +2,13 @@ import { CsgSolid, csgSolidBake, csgSolidCube, csgSolidOpSubtract, csgSolidOpUni
 import { ModelGeo } from "./csg"
 import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
-declare const EDITOR: boolean;
+// ------------------------------------------------------------------------------------
+let [worldGeo, worldFn] =
+csgSolidBake(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,1,0,0),csgSolidSphere(1,0,30,0,50)))
+// ------------------------------------------------------------------------------------
 
-let mesh0 = csgSolidCube(0, [0,-10,0], [100,10,100], 0,0,0)
-let mesh1 = csgSolidSphere(1, [0,0,0], 5)
-let [worldGeo, worldFn] = csgSolidBake(csgSolidOpSubtract(mesh0, mesh1))
-
-let skyboxGeo = csgSolidBake(csgSolidCube(0, [0,0,0], [1,1,1], 0,0,0))[0]
-let playerGeo = csgSolidBake(csgSolidSphere(2, [0,1,0], 1))[0]
+let skyboxGeo = csgSolidBake(csgSolidCube(0, 0,0,0, 1,1,1, 0,0,0))[0]
+let playerGeo = csgSolidBake(csgSolidSphere(2, 0,10,0, 10))[0]
 
 export let worldGetGeo = (): ModelGeo => worldGeo
 export let worldGetSky = (): ModelGeo => skyboxGeo
@@ -35,46 +34,63 @@ export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, 
     return Null
 }
 
+// ------------------------------------------------------------------------------------
+// Everything below here gets optimized away in non-editor builds
+
 export type WorldDefSolid =
-    ['cube',   number, Vec3, Vec3, number, number, number ]
-  | ['sphere', number, Vec3, number ]
-export type WorldDefOp = 'union' | 'subtract'
+    ['cube',   number, number,number,number, number,number,number, number,number,number ]
+  | ['sphere', number, number,number,number, number ]
+export type WorldDefOp = ['add'] | ['sub']
 export type WorldDefItem = WorldDefSolid | WorldDefOp
 export type WorldDef = WorldDefItem[]
 
-let evaluateWorldDefSolid = (def: WorldDefSolid): CsgSolid => {
+let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
+    let result = (name: string, fn: Function): [CsgSolid, string] => [
+        fn(...def.slice(1).map((x: any) => Math.round(parseFloat(x))|0)),
+        `${name}(${def.slice(1).map((x: any) => Math.round(parseFloat(x))|0)})`
+    ]
     switch (def[0]) {
-        case 'cube': return csgSolidCube(def[1], def[2], def[3], def[4], def[5], def[6])
-        case 'sphere': return csgSolidSphere(def[1], def[2], def[3])
+        case 'cube': return result('csgSolidCube', csgSolidCube)
+        case 'sphere': return result('csgSolidSphere', csgSolidSphere)
         default: throw new Error()
     }
 }
 
-let evaluateWorldDefOp = (def: WorldDefOp, solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
-    switch (def) {
-        case 'union': return csgSolidOpUnion(solidA, solidB)
-        case 'subtract': return csgSolidOpSubtract(solidA, solidB)
+let worldDefItemIsSolid = (def: WorldDefItem): boolean =>
+    def[0] === 'cube' || def[0] === 'sphere'
+
+let evaluateWorldDefOp = (def: WorldDefOp, solidA: [CsgSolid, string], solidB: [CsgSolid, string]): [CsgSolid, string] => {
+    let result = (name: string, fn: Function): [CsgSolid, string] => [
+        fn(solidA[0], solidB[0]),
+        `${name}(${solidA[1]},${solidB[1]})`
+    ]
+    switch (def[0]) {
+        case 'add': return result('csgSolidOpUnion', csgSolidOpUnion)
+        case 'sub': return result('csgSolidOpSubtract', csgSolidOpSubtract)
         default: throw new Error()
     }
 }
 
-export let evaluateNewWorld = (worldDef: WorldDef): void => {
-    if (!EDITOR) return;
-
+export let evaluateNewWorld = (worldDef: WorldDef): string => {
     worldDef = worldDef.slice()
     modelGeoDelete(worldGeo)
     worldGeo = null as any
     worldFn = null as any
 
-    let solid = evaluateWorldDefSolid(worldDef.shift() as WorldDefSolid)
-    do {
-        solid = evaluateWorldDefOp(
-            worldDef.shift() as WorldDefOp,
-            solid,
-            evaluateWorldDefSolid(worldDef.shift() as WorldDefSolid),
-        )
-    }
-    while (worldDef.length > 0)
+    let stack = [evaluateWorldDefSolid(worldDef.shift() as WorldDefSolid)]
 
+    while (worldDef.length > 0) {
+        let item = worldDef.shift()!
+        if (worldDefItemIsSolid(item)) {
+            stack.push(evaluateWorldDefSolid(item as WorldDefSolid))
+        } else {
+            let b = stack.pop()!
+            let a = stack.pop()!
+            stack.push(evaluateWorldDefOp(item as WorldDefOp, a, b))
+        }
+    }
+
+    let [solid, js] = stack.pop()!
     ;[worldGeo, worldFn] = csgSolidBake(solid)
+    return `csgSolidBake(${js})`
 }

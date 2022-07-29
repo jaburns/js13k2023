@@ -38,15 +38,29 @@ export let editorInit = (): void => {
     source.style.top = '0px'
     source.style.width = '25%'
     source.style.height = '50%'
-
-    source.value =
-`['cube',0,[0,-10,0],[100,10,100],.75,.1,0],
-'union',
-['sphere',1,[0,0,0],5]`
-
+    source.value = `
+cube   0|0 -10 0|100 10 100|.75 .1 0
+sphere 1|0 0 0|5
+add
+`
     source.onkeydown = (e: KeyboardEvent): void => {
-        if (e.code === 'Enter' && e.ctrlKey) {
-            new Function('fn', `fn([${source.value}])`)(evaluateNewWorld)
+        try {
+            if (e.code === 'Enter' && e.ctrlKey) {
+                let compiled = source.value
+                    .split('\n')
+                    .filter(x => x.trim().length > 0)
+                    .map(x => '['+
+                        x.replace(/\|/g,' ')
+                        .trim()
+                        .replace(/\s+/g, ',')
+                        .replace(/([a-z]+)/g, '"$1"')
+                    +']')
+                    .join(',')
+                let builtJs = new Function('fn', `return fn([${compiled}])`)(evaluateNewWorld)
+                console.log(builtJs)
+            }
+        } catch (e) {
+            console.error(e)
         }
     }
 
@@ -59,35 +73,37 @@ export let editorFrame = (dt: number, inputs: InputsFrame): void => {
 }
 
 let update = (dt: number, inputs: InputsFrame): void => {
-    if (inputs.keysDown['0']) {
-        state.yaw += inputs.mouseAccX * k_mouseSensitivity * dt / k_tickMillis
-        state.pitch_ += inputs.mouseAccY * k_mouseSensitivity * dt / k_tickMillis
-        state.pitch_ = Math.max(-1.5, Math.min(1.5, state.pitch_))
-        state.yaw %= 2*Math.PI
+    if (document.activeElement !== source) {
+        if (inputs.keysDown['0']) {
+            state.yaw += inputs.mouseAccX * k_mouseSensitivity * dt / k_tickMillis
+            state.pitch_ += inputs.mouseAccY * k_mouseSensitivity * dt / k_tickMillis
+            state.pitch_ = Math.max(-1.5, Math.min(1.5, state.pitch_))
+            state.yaw %= 2*Math.PI
+        }
+        let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch_)), [0,0,-1])
+        let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
+        let riseVec = v3Cross(lookVec, strafeVec)
+        let moveVec: Vec3 = [0,0,0]
+        if (inputs.keysDown['W']) {
+            moveVec = v3AddScale(moveVec, lookVec, 0.1*dt)
+        }
+        if (inputs.keysDown['S']) {
+            moveVec = v3AddScale(moveVec, lookVec, -0.1*dt)
+        }
+        if (inputs.keysDown['D']) {
+            moveVec = v3AddScale(moveVec, strafeVec, 0.1*dt)
+        }
+        if (inputs.keysDown['A']) {
+            moveVec = v3AddScale(moveVec, strafeVec, -0.1*dt)
+        }
+        if (inputs.keysDown['f']) {
+            moveVec = v3AddScale(moveVec, riseVec, 0.1*dt)
+        }
+        if (inputs.keysDown['c']) {
+            moveVec = v3AddScale(moveVec, riseVec, -0.1*dt)
+        }
+        state.pos = v3Add(state.pos, moveVec)
     }
-    let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch_)), [0,0,-1])
-    let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
-    let riseVec = v3Cross(lookVec, strafeVec)
-    let moveVec: Vec3 = [0,0,0]
-    if (inputs.keysDown['W']) {
-        moveVec = v3AddScale(moveVec, lookVec, 0.01*dt)
-    }
-    if (inputs.keysDown['S']) {
-        moveVec = v3AddScale(moveVec, lookVec, -0.01*dt)
-    }
-    if (inputs.keysDown['D']) {
-        moveVec = v3AddScale(moveVec, strafeVec, 0.01*dt)
-    }
-    if (inputs.keysDown['A']) {
-        moveVec = v3AddScale(moveVec, strafeVec, -0.01*dt)
-    }
-    if (inputs.keysDown['f']) {
-        moveVec = v3AddScale(moveVec, riseVec, 0.01*dt)
-    }
-    if (inputs.keysDown['c']) {
-        moveVec = v3AddScale(moveVec, riseVec, -0.01*dt)
-    }
-    state.pos = v3Add(state.pos, moveVec)
 }
 
 let render = (): void => {

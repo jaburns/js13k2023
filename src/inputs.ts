@@ -54,14 +54,8 @@ document.onmouseup = (e: MouseEvent) => {
 }
 
 document.onkeydown = (e: KeyboardEvent) => {
-    if (DEBUG) {
-        if (e.repeat) return false
-        frame.keysDown[e.code[3]] = True
-        return true
-    } else {
-        frame.keysDown[e.code[3]] = True
-        return false
-    }
+    frame.keysDown[e.code[3]] = True
+    return DEBUG
 }
 
 document.onkeyup = (e: KeyboardEvent) => {
