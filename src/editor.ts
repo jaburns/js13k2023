@@ -4,7 +4,7 @@ import { InputsFrame } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import {debugLines_frag, debugLines_vert, main_frag, main_vert} from "./shaders.gen"
 import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Negate, Vec3 } from "./types"
-import { evaluateNewWorld, worldGetGeo } from "./world"
+import { evaluateNewWorld, worldGetGeo, worldSourceCode } from "./world"
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
@@ -38,26 +38,12 @@ export let editorInit = (): void => {
     source.style.top = '0px'
     source.style.width = '25%'
     source.style.height = '50%'
-    source.value = `
-cube   0|0 -10 0|100 10 100|.75 .1 0
-sphere 1|0 0 0|5
-add
-`
+    source.value = worldSourceCode
+
     source.onkeydown = (e: KeyboardEvent): void => {
         try {
             if (e.code === 'Enter' && e.ctrlKey) {
-                let compiled = source.value
-                    .split('\n')
-                    .filter(x => x.trim().length > 0)
-                    .map(x => '['+
-                        x.replace(/\|/g,' ')
-                        .trim()
-                        .replace(/\s+/g, ',')
-                        .replace(/([a-z]+)/g, '"$1"')
-                    +']')
-                    .join(',')
-                let builtJs = new Function('fn', `return fn([${compiled}])`)(evaluateNewWorld)
-                console.log(builtJs)
+                console.log(evaluateNewWorld(source.value))
             }
         } catch (e) {
             console.error(e)

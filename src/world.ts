@@ -3,8 +3,10 @@ import { ModelGeo } from "./csg"
 import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
-let [worldGeo, worldFn] =
-csgSolidBake(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,1,0,0),csgSolidSphere(1,0,30,0,50)))
+let [worldGeo, worldFn] = csgSolidBake(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,1,0,0),csgSolidSphere(1,0,30,0,50)))
+export let worldSourceCode = `cube 0|0 -10 0|100 10 100|1 0 0
+sphere 1|0 30 0|50
+sub`
 // ------------------------------------------------------------------------------------
 
 let skyboxGeo = csgSolidBake(csgSolidCube(0, 0,0,0, 1,1,1, 0,0,0))[0]
@@ -37,12 +39,28 @@ export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, 
 // ------------------------------------------------------------------------------------
 // Everything below here gets optimized away in non-editor builds
 
-export type WorldDefSolid =
+export let evaluateNewWorld = (worldCode: string): string => {
+    let compiled = worldCode
+        .split('\n')
+        .filter(x => x.trim().length > 0)
+        .map(x => '['+
+            x.replace(/\|/g,' ')
+            .trim()
+            .replace(/\s+/g, ',')
+            .replace(/([a-z]+)/g, '"$1"')
+        +']')
+        .join(',')
+
+    let asJs = new Function('fn', `return fn([${compiled}])`)(doEvalNewWorld)
+    return asJs + '\nexport let worldSourceCode = `'+worldCode+'`'
+}
+
+type WorldDefSolid =
     ['cube',   number, number,number,number, number,number,number, number,number,number ]
   | ['sphere', number, number,number,number, number ]
-export type WorldDefOp = ['add'] | ['sub']
-export type WorldDefItem = WorldDefSolid | WorldDefOp
-export type WorldDef = WorldDefItem[]
+type WorldDefOp = ['add'] | ['sub']
+type WorldDefItem = WorldDefSolid | WorldDefOp
+type WorldDef = WorldDefItem[]
 
 let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
     let result = (name: string, fn: Function): [CsgSolid, string] => [
@@ -71,7 +89,7 @@ let evaluateWorldDefOp = (def: WorldDefOp, solidA: [CsgSolid, string], solidB: [
     }
 }
 
-export let evaluateNewWorld = (worldDef: WorldDef): string => {
+let doEvalNewWorld = (worldDef: WorldDef): string => {
     worldDef = worldDef.slice()
     modelGeoDelete(worldGeo)
     worldGeo = null as any
@@ -92,5 +110,5 @@ export let evaluateNewWorld = (worldDef: WorldDef): string => {
 
     let [solid, js] = stack.pop()!
     ;[worldGeo, worldFn] = csgSolidBake(solid)
-    return `csgSolidBake(${js})`
+    return `let [worldGeo,worldFn]=csgSolidBake(${js})`
 }
