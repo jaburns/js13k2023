@@ -43,7 +43,6 @@ export let evaluateNewWorld = (sourceList: [number,string[]][]): string => {
     let justCommands = sourceList
         .map(x => x[1])
         .filter(x => x.length > 0 && !x[0].startsWith('#') && x[0] !== '')
-    console.log( `return fn(${JSON.stringify(justCommands)})`)
     let asJs = new Function('fn', `return fn(${JSON.stringify(justCommands)})`)(doEvalNewWorld)
     return asJs + '\nexport let worldSourceList:[number,string[]][]='+JSON.stringify(sourceList)+'\n'
 }

@@ -3,7 +3,7 @@ import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_B
 import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag } from "./shaders.gen"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 
 declare const CC: HTMLCanvasElement
@@ -11,21 +11,16 @@ declare const G: WebGLRenderingContext
 declare const k_tickMillis: number
 declare const k_mouseSensitivity: number
 
-type EditorState = {
-    yaw: number,
-    pitch_: number,
-    pos: Vec3,
-    showLines: boolean,
-}
+let yaw: number
+let pitch: number
+let pos: Vec3
+let showLines: boolean
+let showHandles: boolean
+let pickedIndex: number
+let cameraDragging: boolean
+let objectDragging: number|false
 
-let state: EditorState = {
-    yaw: 0,
-    pitch_: 0,
-    pos: [0,0,0],
-    showLines: true,
-}
-
-let vp: Mat4
+let ivp: Mat4
 let handleGeo: ModelGeo
 let mainShader: WebGLProgram
 let debugLinesShader: WebGLProgram
@@ -34,12 +29,89 @@ let mouseRayOrigin: Vec3
 let mouseRayDir: Vec3
 
 let lastInputs: InputsFrame
-
+let sourceOldText: string
+let sourceDirty: boolean
 let sourceElem: HTMLTextAreaElement
 let sourceList: [number,string[]][]
+let undoStack: [number,string[]][][]
+let redoStack: [number,string[]][][]
+
+export let editorInit = (): void => {
+    yaw = 0
+    pitch = 0
+    pos = [0,0,0]
+    showLines = true
+    showHandles = true
+    pickedIndex = -1
+    cameraDragging = false
+    objectDragging = false
+
+    mainShader = shaderCompile(main_vert, main_frag)
+    debugGeoShader = shaderCompile(main_vert, debugGeo_frag)
+    debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
+    lastInputs = inputsNew()
+
+    ivp = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+    mouseRayOrigin = [0,0,0]
+    mouseRayDir = [0,0,-1]
+    undoStack = []
+    redoStack = []
+
+    handleGeo = csgSolidBake(csgSolidSphere(0, 0,0,0, 10))[0]
+
+    sourceElem = document.createElement('textarea')
+    sourceElem.style.zIndex = '10'
+    sourceElem.style.position = 'absolute'
+    sourceElem.style.left = '0px'
+    sourceElem.style.top = '0px'
+    sourceElem.style.width = '25%'
+    sourceElem.style.height = '50%'
+
+    sourceList = worldSourceList
+    rebuildSourceText()
+    sourceDirty = false
+    sourceOldText = sourceElem.value
+
+    sourceElem.onkeydown = (e: KeyboardEvent): void => {
+        try {
+            if (e.code === 'Enter' && e.ctrlKey) {
+                sourceDirty = false
+                rebuildScene()
+            }
+        } catch (e) {
+            console.error(e)
+        }
+    }
+    sourceElem.oninput = () => {
+        if (!sourceDirty) {
+            redoStack = []
+            undoStack.push(sourceTextToList(sourceOldText))
+            if (undoStack.length > 100) undoStack.shift()
+            sourceDirty = true
+        }
+        sourceOldText = sourceElem.value
+        sourceList = sourceTextToList(sourceElem.value)
+    }
+
+    document.body.appendChild(sourceElem)
+}
+
+export let editorFrame = (dt: number, inputs: InputsFrame): void => {
+    update(dt, inputs)
+    render()
+}
+
+let sourceTextToList = (txt: string): typeof sourceList =>
+    txt.replace(/\|/g,' ')
+        .split('\n')
+        .map(x => {
+            let trimmed = x.trim()
+            return [x.length - trimmed.length, trimmed.replace(/\s+/g, ' ').split(' ')]
+        })
 
 let rebuildSourceText = (): void => {
-    sourceElem.value = sourceList.map(([indent, items]) => {
+    sourceDirty = false
+    sourceOldText = sourceElem.value = sourceList.map(([indent, items]) => {
         let line = ' '.repeat(indent)
         let comment = items[0].startsWith('#')
         for (let i = 0; i < items.length; ++i) {
@@ -55,110 +127,117 @@ let rebuildSourceText = (): void => {
     }).join('\n')
 }
 
-export let editorInit = (): void => {
-    mainShader = shaderCompile(main_vert, main_frag)
-    debugGeoShader = shaderCompile(main_vert, debugGeo_frag)
-    debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
-    lastInputs = inputsNew()
-
-    vp = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
-    mouseRayOrigin = [0,0,0]
-    mouseRayDir = [0,0,-1]
-
-    handleGeo = csgSolidBake(csgSolidSphere(0, 0,0,0, 10))[0]
-
-    sourceElem = document.createElement('textarea')
-    sourceElem.style.zIndex = '10'
-    sourceElem.style.position = 'absolute'
-    sourceElem.style.left = '0px'
-    sourceElem.style.top = '0px'
-    sourceElem.style.width = '25%'
-    sourceElem.style.height = '50%'
-
-    sourceList = worldSourceList
-    rebuildSourceText()
-
-    sourceElem.onkeydown = (e: KeyboardEvent): void => {
-        try {
-            if (e.code === 'Enter' && e.ctrlKey) {
-                navigator.clipboard.writeText(evaluateNewWorld(sourceList))
-            }
-        } catch (e) {
-            console.error(e)
-        }
-    }
-    sourceElem.oninput = () => {
-        sourceList = sourceElem.value
-            .replace(/\|/g,' ')
-            .split('\n')
-            .map(x => {
-                let trimmed = x.trim()
-                return [x.length - trimmed.length, trimmed.replace(/\s+/g, ' ').split(' ')]
-            })
-    }
-
-    document.body.appendChild(sourceElem)
-}
-
-export let editorFrame = (dt: number, inputs: InputsFrame): void => {
-    update(dt, inputs)
-    render()
+let rebuildScene = (): void => {
+    navigator.clipboard.writeText(evaluateNewWorld(sourceList))
 }
 
 let update = (dt: number, inputs: InputsFrame): void => {
-    if (document.activeElement !== sourceElem) {
-        if (inputs.keysDown['0']) {
-            state.yaw += inputs.mouseAccX * k_mouseSensitivity * dt / k_tickMillis
-            state.pitch_ += inputs.mouseAccY * k_mouseSensitivity * dt / k_tickMillis
-            state.pitch_ = Math.max(-1.5, Math.min(1.5, state.pitch_))
-            state.yaw %= 2*Math.PI
-        }
-        let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch_)), [0,0,-1])
-        let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
-        let fallVec = v3Cross(lookVec, strafeVec)
-        let moveVec: Vec3 = [0,0,0]
-        if (inputs.keysDown['W']) {
-            moveVec = v3AddScale(moveVec, lookVec, 0.1*dt)
-        }
-        if (inputs.keysDown['S']) {
-            moveVec = v3AddScale(moveVec, lookVec, -0.1*dt)
-        }
-        if (inputs.keysDown['D']) {
-            moveVec = v3AddScale(moveVec, strafeVec, 0.1*dt)
-        }
-        if (inputs.keysDown['A']) {
-            moveVec = v3AddScale(moveVec, strafeVec, -0.1*dt)
-        }
-        if (inputs.keysDown['Q']) {
-            moveVec = v3AddScale(moveVec, fallVec, 0.1*dt)
-        }
-        if (inputs.keysDown['E']) {
-            moveVec = v3AddScale(moveVec, fallVec, -0.1*dt)
-        }
-        if (inputs.keysDown['P'] && !lastInputs.keysDown['P']) {
-            state.showLines = !state.showLines
-        }
-        state.pos = v3Add(state.pos, moveVec)
+    if (document.activeElement === sourceElem) {
+        lastInputs = inputs
+        return
+    }
 
-        if (lastInputs.mousePosX !== inputs.mousePosX || lastInputs.mousePosY !== inputs.mousePosY) {
-            let ndc = v3AddScale([-1,-1,0], [inputs.mousePosX! / window.innerWidth, 1 - inputs.mousePosY! / window.innerHeight, 0], 2)
-            let ivp = m4IInvert(vp)
-            mouseRayOrigin = m4MulVec4(ivp, [ndc[0], ndc[1], -1, 1])
-            mouseRayDir = v3Normalize(v3Sub(m4MulVec4(ivp, [ndc[0], ndc[1], 1, 1]), mouseRayOrigin))
+    if (inputs.keysDown['0']) {
+        if (!lastInputs.keysDown['0']) {
+            if (pickedIndex >= 0) {
+                objectDragging = pickedIndex
+                undoStack.push(JSON.parse(JSON.stringify(sourceList)))
+                if (undoStack.length > 100) undoStack.shift()
+                redoStack = []
+            } else {
+                cameraDragging = true
+            }
+        }
+    } else {
+        cameraDragging = false
+        objectDragging = false
+    }
+
+    if (cameraDragging) {
+        yaw += inputs.mouseAccX * 0.01 * dt / k_tickMillis
+        pitch += inputs.mouseAccY * 0.01 * dt / k_tickMillis
+        pitch = Math.max(-1.5, Math.min(1.5, pitch))
+        yaw %= 2*Math.PI
+    }
+    if (objectDragging !== false && (inputs.mouseAccX !== 0 || inputs.mouseAccY !== 0)) {
+        let pos = sourceList[objectDragging][1].slice(2,5).map(x => parseInt(x)) as any as Vec3
+
+        if (inputs.keysDown['X']) {
+            pos = v3Add(pos, [Math.sign(v3Dot(mouseRayDir, [0,0,-1]))*inputs.mouseAccX, 0, 0])
+        } else if (inputs.keysDown['Y']) {
+            pos = v3Add(pos, [0,-inputs.mouseAccY, 0])
+        } else if (inputs.keysDown['Z']) {
+            pos = v3Add(pos, [0, 0, Math.sign(v3Dot(mouseRayDir, [1,0,0]))*inputs.mouseAccX])
+        }
+
+        sourceList[objectDragging][1].splice(2,3,...pos.map(x => x.toString()))
+        rebuildSourceText()
+        rebuildScene()
+    }
+
+    if (inputs.keysDown['U'] && !lastInputs.keysDown['U']) {
+        if (inputs.keysDown['f']) {
+            if (redoStack.length > 0) {
+                undoStack.push(JSON.parse(JSON.stringify(sourceList)))
+                sourceList = redoStack.pop()!
+                rebuildSourceText()
+                rebuildScene()
+            }
+        } else if (undoStack.length > 0) {
+            redoStack.push(JSON.parse(JSON.stringify(sourceList)))
+            sourceList = undoStack.pop()!
+            rebuildSourceText()
+            rebuildScene()
         }
     }
+
+    let lookVec = m4MulPoint(m4Mul(m4RotY(yaw), m4RotX(-pitch)), [0,0,-1])
+    let strafeVec = m4MulPoint(m4RotY(yaw+Math.PI/2), [0,0,-1])
+    let fallVec = v3Cross(lookVec, strafeVec)
+    let moveVec: Vec3 = [0,0,0]
+    if (inputs.keysDown['W']) {
+        moveVec = v3AddScale(moveVec, lookVec, 0.1*dt)
+    }
+    if (inputs.keysDown['S']) {
+        moveVec = v3AddScale(moveVec, lookVec, -0.1*dt)
+    }
+    if (inputs.keysDown['D']) {
+        moveVec = v3AddScale(moveVec, strafeVec, 0.1*dt)
+    }
+    if (inputs.keysDown['A']) {
+        moveVec = v3AddScale(moveVec, strafeVec, -0.1*dt)
+    }
+    if (inputs.keysDown['Q']) {
+        moveVec = v3AddScale(moveVec, fallVec, 0.1*dt)
+    }
+    if (inputs.keysDown['E']) {
+        moveVec = v3AddScale(moveVec, fallVec, -0.1*dt)
+    }
+    if (inputs.keysDown['L'] && !lastInputs.keysDown['L']) {
+        showLines = !showLines
+    }
+    if (inputs.keysDown['H'] && !lastInputs.keysDown['H']) {
+        showHandles = !showHandles
+    }
+    pos = v3Add(pos, moveVec)
+
+    let ndc = v3AddScale([-1,-1,0], [inputs.mousePosX! / window.innerWidth, 1 - inputs.mousePosY! / window.innerHeight, 0], 2)
+    mouseRayOrigin = m4MulVec4(ivp, [ndc[0], ndc[1], -1, 1])
+    mouseRayDir = v3Normalize(v3Sub(m4MulVec4(ivp, [ndc[0], ndc[1], 1, 1]), mouseRayOrigin))
+
     lastInputs = inputs
 }
 
 let render = (): void => {
-    let lookMat = m4Mul(m4RotX(state.pitch_), m4RotY(-state.yaw))
-    let viewMat = m4Mul(lookMat, m4Translate(v3Negate(state.pos)))
+    let lookMat = m4Mul(m4RotX(pitch), m4RotY(-yaw))
+    let viewMat = m4Mul(lookMat, m4Translate(v3Negate(pos)))
     let projectionMat = m4Perspective(
         CC.height / CC.width,
         0.1,
         1000
     )
-    vp = m4Mul(projectionMat, viewMat)
+    let vp = m4Mul(projectionMat, viewMat)
+    ivp = m4IInvert(vp)
 
     G.clearColor(0,0,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
@@ -172,34 +251,37 @@ let render = (): void => {
     )))
     modelGeoDraw(worldGetGeo(), mainShader)
 
-    if (!state.showLines) {
-        return;
+    pickedIndex = -1
+
+    if (showHandles) {
+        G.disable(gl_DEPTH_TEST)
+
+        G.useProgram(debugGeoShader)
+        for (let i = 0; i < sourceList.length; ++i) {
+            let line = sourceList[i]
+            if (line[1][0] !== 'cube' && line[1][0] !== 'sphere') {
+                continue;
+            }
+            let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
+            G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_mvp'), false, m4Mul(vp, m4Translate(pos)))
+
+            if (pickedIndex === -1 && v3Length(v3Cross(mouseRayDir, v3Sub(pos, mouseRayOrigin))) < 10) {
+                pickedIndex = i
+                G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,0)
+            } else {
+                G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,1)
+            }
+
+            modelGeoDraw(handleGeo, debugGeoShader)
+        }
+        G.enable(gl_DEPTH_TEST)
     }
 
-    G.disable(gl_DEPTH_TEST)
-
-    G.useProgram(debugGeoShader)
-    for (let line of sourceList) {
-        if (line[1][0] !== 'cube' && line[1][0] !== 'sphere') {
-            continue;
-        }
-        let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
-        G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_mvp'), false, m4Mul(vp, m4Translate(pos)))
-
-        if (v3Length(v3Cross(mouseRayDir, v3Sub(pos, mouseRayOrigin))) < 10) {
-            G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,0)
-        } else {
-            G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,1)
-        }
-
-        modelGeoDraw(handleGeo, debugGeoShader)
+    if (showLines) {
+        G.useProgram(debugLinesShader)
+        G.uniformMatrix4fv(G.getUniformLocation(debugLinesShader, 'u_mvp'), false, vp)
+        modelGeoDrawLines(worldGetGeo(), debugLinesShader)
     }
-
-    G.enable(gl_DEPTH_TEST)
-
-    G.useProgram(debugLinesShader)
-    G.uniformMatrix4fv(G.getUniformLocation(debugLinesShader, 'u_mvp'), false, vp)
-    modelGeoDrawLines(worldGetGeo(), debugLinesShader)
 }
 
 let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
