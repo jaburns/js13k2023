@@ -300,7 +300,7 @@ export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, ra
             Math.sin(theta) * Math.sin(phi),
         ],
         vertices.push({
-            pos: v3AddScale([cz,cy,cz], normal, radius),
+            pos: v3AddScale([cx,cy,cz], normal, radius),
             normal,
             uv,
         })

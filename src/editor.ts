@@ -3,7 +3,7 @@ import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_B
 import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag } from "./shaders.gen"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Negate, Vec3 } from "./types"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 
 declare const CC: HTMLCanvasElement
@@ -25,10 +25,13 @@ let state: EditorState = {
     showLines: true,
 }
 
+let vp: Mat4
 let handleGeo: ModelGeo
 let mainShader: WebGLProgram
 let debugLinesShader: WebGLProgram
 let debugGeoShader: WebGLProgram
+let mouseRayOrigin: Vec3
+let mouseRayDir: Vec3
 
 let lastInputs: InputsFrame
 
@@ -57,6 +60,10 @@ export let editorInit = (): void => {
     debugGeoShader = shaderCompile(main_vert, debugGeo_frag)
     debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
     lastInputs = inputsNew()
+
+    vp = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
+    mouseRayOrigin = [0,0,0]
+    mouseRayDir = [0,0,-1]
 
     handleGeo = csgSolidBake(csgSolidSphere(0, 0,0,0, 10))[0]
 
@@ -132,6 +139,13 @@ let update = (dt: number, inputs: InputsFrame): void => {
             state.showLines = !state.showLines
         }
         state.pos = v3Add(state.pos, moveVec)
+
+        if (lastInputs.mousePosX !== inputs.mousePosX || lastInputs.mousePosY !== inputs.mousePosY) {
+            let ndc = v3AddScale([-1,-1,0], [inputs.mousePosX! / window.innerWidth, 1 - inputs.mousePosY! / window.innerHeight, 0], 2)
+            let ivp = m4IInvert(vp)
+            mouseRayOrigin = m4MulVec4(ivp, [ndc[0], ndc[1], -1, 1])
+            mouseRayDir = v3Normalize(v3Sub(m4MulVec4(ivp, [ndc[0], ndc[1], 1, 1]), mouseRayOrigin))
+        }
     }
     lastInputs = inputs
 }
@@ -144,7 +158,7 @@ let render = (): void => {
         0.1,
         1000
     )
-    let vp: Mat4 = m4Mul(projectionMat, viewMat)
+    vp = m4Mul(projectionMat, viewMat)
 
     G.clearColor(0,0,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
@@ -169,9 +183,15 @@ let render = (): void => {
         if (line[1][0] !== 'cube' && line[1][0] !== 'sphere') {
             continue;
         }
-        let translate = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
-        G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_mvp'), false, m4Mul(vp, m4Translate(translate)))
-        G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,1)
+        let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
+        G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_mvp'), false, m4Mul(vp, m4Translate(pos)))
+
+        if (v3Length(v3Cross(mouseRayDir, v3Sub(pos, mouseRayOrigin))) < 10) {
+            G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,0)
+        } else {
+            G.uniform3f(G.getUniformLocation(debugGeoShader, 'u_color'), 0,1,1)
+        }
+
         modelGeoDraw(handleGeo, debugGeoShader)
     }
 
@@ -195,4 +215,71 @@ let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
 
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.lines!.indexBuffer)
     G.drawElements(gl_LINES, self.lines!.indexBufferLen, gl_UNSIGNED_SHORT, 0)
+}
+
+
+let m4MulVec4 = (m: Mat4, [x,y,z,w]: [number,number,number,number]): Vec3 => {
+    let [ox, oy, oz, ow] = [
+        (m[0] * x + m[4] * y + m[8] * z + m[12] * w),
+        (m[1] * x + m[5] * y + m[9] * z + m[13] * w),
+        (m[2] * x + m[6] * y + m[10] * z + m[14] * w),
+        (m[3] * x + m[7] * y + m[11] * z + m[15] * w),
+    ]
+    return [ox/ow, oy/ow, oz/ow]
+}
+
+let m4IInvert = (a: Mat4): Mat4 => {
+    let out = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+  let a00 = a[0],
+    a01 = a[1],
+    a02 = a[2],
+    a03 = a[3];
+  let a10 = a[4],
+    a11 = a[5],
+    a12 = a[6],
+    a13 = a[7];
+  let a20 = a[8],
+    a21 = a[9],
+    a22 = a[10],
+    a23 = a[11];
+  let a30 = a[12],
+    a31 = a[13],
+    a32 = a[14],
+    a33 = a[15];
+  let b00 = a00 * a11 - a01 * a10;
+  let b01 = a00 * a12 - a02 * a10;
+  let b02 = a00 * a13 - a03 * a10;
+  let b03 = a01 * a12 - a02 * a11;
+  let b04 = a01 * a13 - a03 * a11;
+  let b05 = a02 * a13 - a03 * a12;
+  let b06 = a20 * a31 - a21 * a30;
+  let b07 = a20 * a32 - a22 * a30;
+  let b08 = a20 * a33 - a23 * a30;
+  let b09 = a21 * a32 - a22 * a31;
+  let b10 = a21 * a33 - a23 * a31;
+  let b11 = a22 * a33 - a23 * a32;
+  // Calculate the determinant
+  let det =
+    b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+  if (!det) {
+      throw new Error()
+  }
+  det = 1.0 / det;
+  out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+  out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+  out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+  out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+  out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+  out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+  out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+  out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+  out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+  out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+  out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+  out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+  out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+  out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+  out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+  out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+  return out as any as Mat4;
 }
