@@ -76,7 +76,6 @@ export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     G.enableVertexAttribArray(posLoc)
     G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
 
-    console.log('DRAW ELEMENTS')
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.indexBuffer)
     G.drawElements(gl_TRIANGLES, self.indexBufferLen, gl_UNSIGNED_SHORT, 0)
 }
@@ -97,18 +96,16 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let modelMat = m4Translate(state.pos)
     let mvp: Mat4
 
-    console.log('renderGame')
-
     // Player
-    //mvp = m4Mul(projectionMat, m4Mul(viewMat, modelMat))
-    //G.useProgram(mainShader)
-    //G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
-    //G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-    //    G.activeTexture(gl_TEXTURE0 + i),
-    //    G.bindTexture(gl_TEXTURE_2D, tex),
-    //    i
-    //)))
-    //modelGeoDraw(worldGetPlayer(), mainShader)
+    mvp = m4Mul(projectionMat, m4Mul(viewMat, modelMat))
+    G.useProgram(mainShader)
+    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
+    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
+        G.activeTexture(gl_TEXTURE0 + i),
+        G.bindTexture(gl_TEXTURE_2D, tex),
+        i
+    )))
+    modelGeoDraw(worldGetPlayer(), mainShader)
 
     // World
     mvp = m4Mul(projectionMat, viewMat)

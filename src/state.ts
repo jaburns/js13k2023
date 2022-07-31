@@ -67,7 +67,5 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
         state.vel = v3Mul(state.vel, [1,0,1])
     }
 
-    console.log('TICK')
-
     return state
 }

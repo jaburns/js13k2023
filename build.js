@@ -148,16 +148,16 @@ const main = () => {
         x = hashIdentifiers(x, true)
     }
 
-    x = "G=CC.getContext('webgl',{antialias:!1});" + x
+    if (x.endsWith(';')) {
+        x = x.substring(0, x.length - 1)
+    }
+
+    x = "(()=>{let G=CC.getContext('webgl',{antialias:!1});" + x + "})()"
 
     if (!DEBUG && !NO_ROADROLLER) {
         fs.writeFileSync('/tmp/aaa.js', x)
         run(`roadroller -D ${ROADROLLER_PARAMS} -o /tmp/bbb.js /tmp/aaa.js`)
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')
-    }
-
-    if (x.endsWith(';')) {
-        x = x.substring(0, x.length - 1)
     }
 
     fs.writeFileSync('build/index.html', `<canvas id=CC style=image-rendering:pixelated><script>${x}</script>`)
