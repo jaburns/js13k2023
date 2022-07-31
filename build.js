@@ -8,11 +8,13 @@ const constantsJson = require('./constants.json')
 
 const EDITOR = process.argv.indexOf('--editor') >= 0
 const DEBUG = EDITOR || process.argv.indexOf('--debug') >= 0
-const NO_ROADROLLER = process.argv.indexOf('--no-roadroller') >= 0
+const SEARCH = process.argv.indexOf('--search') >= 0
 const MONO_RUN = process.platform === 'win32' ? '' : 'mono ';
 
-const ROADROLLER_PARAMS = '-Zab0 -Zdy0 -Zlr930 -Zmc4 -Zmd12 -Zpr15 -S0,1,2,3,5,6,13,25,58,83,225,426'
-//const ROADROLLER_PARAMS = '-O2'
+const BEST_ROADROLLER_PARAMS = '-Zab0 -Zdy0 -Zlr1113 -Zmc4 -Zmd21 -Zpr14 -S0,1,2,3,4,7,13,21,30,42,202,241'
+
+// $ npm run search 2>&1 | grep '<-'
+const ROADROLLER_PARAMS = SEARCH ? '-OO' : BEST_ROADROLLER_PARAMS
 
 const CLOSURE_COMPILER_EXTERNS = `
 /**
@@ -26,6 +28,7 @@ var G;
 `
 
 const run = cmd => {
+    console.log('==>',cmd)
     const code = sh.exec(cmd).code
     if (code !== 0)
         process.exit(code)
@@ -117,13 +120,10 @@ const main = () => {
 
     buildShaderExternalNamesTable()
 
-    console.log('Minifying shaders...');
     generateShaderFile();
 
-    console.log('Compiling typescript...')
     run('tsc --outDir build')
 
-    console.log('Rolling up bundle...')
     run('rollup -c' + (EDITOR ? ' --config-editor' : DEBUG ? ' --config-debug' : ''))
 
     let x = fs.readFileSync('build/bundle.js', 'utf8');
@@ -134,13 +134,11 @@ const main = () => {
     if (!DEBUG) {
         sh.cd('build')
         fs.writeFileSync('bundle1.js', x)
-        console.log('Applying closure compiler...')
         fs.writeFileSync('externs.js', CLOSURE_COMPILER_EXTERNS)
         run('google-closure-compiler -O ADVANCED bundle1.js --js_output_file bundle2.js --externs externs.js')
 
         fs.writeFileSync('bundle2.js', fs.readFileSync('bundle2.js', 'utf8').replace(/var /g, 'let '))
 
-        console.log('Applying terser...')
         run('terser --ecma 2020 --mangle reserved=[CC,G] --mangle_props keep_quoted --compress passes=10,keep_fargs=false,pure_getters=true,unsafe=true,unsafe_arrows=true,unsafe_comps=true,unsafe_math=true,unsafe_methods=true,unsafe_symbols=true --format quote_style=1 --output bundle3.js bundle2.js')
         sh.cd('..')
 
@@ -154,7 +152,7 @@ const main = () => {
 
     x = "(()=>{let G=CC.getContext('webgl',{antialias:!1});" + x + "})()"
 
-    if (!DEBUG && !NO_ROADROLLER) {
+    if (!DEBUG) {
         fs.writeFileSync('/tmp/aaa.js', x)
         run(`roadroller -D ${ROADROLLER_PARAMS} -o /tmp/bbb.js /tmp/aaa.js`)
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')

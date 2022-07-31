@@ -2,6 +2,7 @@
   "name": "js13k2022",
   "private": true,
   "scripts": {
+    "search": "node build.js --search",
     "debug": "node build.js --debug",
     "editor": "node build.js --editor",
     "start": "node build.js"
