@@ -321,12 +321,6 @@ export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, ra
     }
 }
 
-let sdfUnion = (a: number, b: number): number =>
-    Math.max(Math.min(a,b),0)-Math.hypot(Math.min(a,0),Math.min(b,0))
-
-let sdfSubtract = (a: number, b: number): number =>
-    Math.min(Math.max(a,-b),0)+Math.hypot(Math.max(a,0),Math.max(-b,0))
-
 let sdfCube = (p: Vec3, center: Vec3, radius: Vec3, yaw: number, pitch: number, roll: number): number => (
     v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), radius),
     v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0)
@@ -368,7 +362,10 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
         `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE},${F_SPHERE}`,
         'return ' + self.sdf
     )
-    let sdfFunc = (x: Vec3): number => innerSdfFunc(x, sdfUnion, sdfSubtract, sdfCube, sdfSphere)
+    let sdfSubtract = (a:number,b:number):number=>Math.max(a,-b)
+    let sdfFunc = (x: Vec3): number => innerSdfFunc(
+        x, Math.min, sdfSubtract, sdfCube, sdfSphere
+    )
 
     self.polys.map(poly => {
         let startIdx = vertexBuf.length / 3
