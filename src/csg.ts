@@ -195,10 +195,8 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
 // ----------------------------------------------------------------------------
 
 const V_POSITION  = 'a'
-const F_UNION     = 'b'
-const F_SUBTRACT  = 'c'
-const F_CUBE      = 'd'
-const F_SPHERE    = 'e'
+const F_CUBE      = 'b'
+const F_SPHERE    = 'c'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
@@ -220,10 +218,10 @@ export let csgSolidOpUnion = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
         polys: csgNodeAllPolygons(a),
         lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
                 .concat(solidB.lineViewPolys || solidB.polys.map(x => ((x as any).tag = 0,x))),
-        sdf: `${F_UNION}(${solidA.sdf},${solidB.sdf})`,
+        sdf: `Math.min(${solidA.sdf},${solidB.sdf})`,
     } : {
         polys: csgNodeAllPolygons(a),
-        sdf: `${F_UNION}(${solidA.sdf},${solidB.sdf})`,
+        sdf: `Math.min(${solidA.sdf},${solidB.sdf})`,
     }
 }
 
@@ -243,10 +241,10 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
         polys: csgNodeAllPolygons(a),
         lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
                 .concat((solidB.lineViewPolys || solidB.polys).map(x => ((x as any).tag = 1,x))),
-        sdf: `${F_SUBTRACT}(${solidA.sdf},${solidB.sdf})`,
+        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
     } : {
         polys: csgNodeAllPolygons(a),
-        sdf: `${F_SUBTRACT}(${solidA.sdf},${solidB.sdf})`,
+        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
     }
 }
 
@@ -359,12 +357,11 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let linesTagBuf: number[] = []
 
     let innerSdfFunc = new Function(
-        `${V_POSITION},${F_UNION},${F_SUBTRACT},${F_CUBE},${F_SPHERE}`,
+        `${V_POSITION},${F_CUBE},${F_SPHERE}`,
         'return ' + self.sdf
     )
-    let sdfSubtract = (a:number,b:number):number=>Math.max(a,-b)
     let sdfFunc = (x: Vec3): number => innerSdfFunc(
-        x, Math.min, sdfSubtract, sdfCube, sdfSphere
+        x, sdfCube, sdfSphere
     )
 
     self.polys.map(poly => {

@@ -5,7 +5,7 @@ import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 // ------------------------------------------------------------------------------------
 
 let [worldGeo,worldFn]=csgSolidBake(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,45,20,0),csgSolidSphere(1,0,30,0,40)),csgSolidCube(0,0,-30,0,100,10,100,0,0,0)),csgSolidCube(2,50,15,0,10,2,100,45,20,0)))
-export let worldSourceList:[number,string[]][]=[[0,["cube","0","0","-10","0","100","10","100","45","20","0"]],[0,["sphere","1","0","30","0","40"]],[0,["sub"]],[0,["cube","0","0","-30","0","100","10","100","0","0","0"]],[0,["add"]],[0,[""]],[0,["#","Stone","path"]],[0,["cube","2","50","15","0","10","2","100","45","20","0"]],[0,["sub"]]]
+export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-10","0","100","10","100","45","20","0"]],[0,["ball","1","0","30","0","40"]],[0,["sub"]],[0,["box","0","0","-30","0","100","10","100","0","0","0"]],[0,["add"]],[0,[""]],[0,["#","Stone","path"]],[0,["box","2","50","15","0","10","2","100","45","20","0"]],[0,["sub"]]]
 
 // ----------------------
 
@@ -48,8 +48,8 @@ export let evaluateNewWorld = (sourceList: [number,string[]][]): string => {
 }
 
 type WorldDefSolid =
-    ['cube',   number, number,number,number, number,number,number, number,number,number ]
-  | ['sphere', number, number,number,number, number ]
+    ['box',   number, number,number,number, number,number,number, number,number,number ]
+  | ['ball', number, number,number,number, number ]
 type WorldDefOp = ['add'] | ['sub']
 type WorldDefItem = WorldDefSolid | WorldDefOp
 type WorldDef = WorldDefItem[]
@@ -60,14 +60,14 @@ let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
         `${name}(${def.slice(1).map((x: any) => parseInt(x))})`
     ]
     switch (def[0]) {
-        case 'cube': return result('csgSolidCube', csgSolidCube)
-        case 'sphere': return result('csgSolidSphere', csgSolidSphere)
+        case 'box': return result('csgSolidCube', csgSolidCube)
+        case 'ball': return result('csgSolidSphere', csgSolidSphere)
         default: throw new Error()
     }
 }
 
 let worldDefItemIsSolid = (def: WorldDefItem): boolean =>
-    def[0] === 'cube' || def[0] === 'sphere'
+    def[0] === 'box' || def[0] === 'ball'
 
 let evaluateWorldDefOp = (def: WorldDefOp, solidA: [CsgSolid, string], solidB: [CsgSolid, string]): [CsgSolid, string] => {
     let result = (name: string, fn: Function): [CsgSolid, string] => [

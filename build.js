@@ -11,8 +11,8 @@ const DEBUG = EDITOR || process.argv.indexOf('--debug') >= 0
 const NO_ROADROLLER = process.argv.indexOf('--no-roadroller') >= 0
 const MONO_RUN = process.platform === 'win32' ? '' : 'mono ';
 
-//const ROADROLLER_PARAMS = '-Zab0 -Zdy0 -Zlr930 -Zmc4 -Zmd12 -Zpr15 -S0,1,2,3,5,6,13,25,58,83,225,426'
-const ROADROLLER_PARAMS = '-O2'
+const ROADROLLER_PARAMS = '-Zab0 -Zdy0 -Zlr930 -Zmc4 -Zmd12 -Zpr15 -S0,1,2,3,5,6,13,25,58,83,225,426'
+//const ROADROLLER_PARAMS = '-O2'
 
 const CLOSURE_COMPILER_EXTERNS = `
 /**

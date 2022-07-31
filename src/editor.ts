@@ -207,10 +207,10 @@ let update = (dt: number, inputs: InputsFrame): void => {
     if (inputs.keysDown['A']) {
         moveVec = v3AddScale(moveVec, strafeVec, -0.1*dt)
     }
-    if (inputs.keysDown['Q']) {
+    if (inputs.keysDown['f']) { // Shi f t
         moveVec = v3AddScale(moveVec, fallVec, 0.1*dt)
     }
-    if (inputs.keysDown['E']) {
+    if (inputs.keysDown['c']) { // Spa c e
         moveVec = v3AddScale(moveVec, fallVec, -0.1*dt)
     }
     if (inputs.keysDown['L'] && !lastInputs.keysDown['L']) {
@@ -259,7 +259,7 @@ let render = (): void => {
         G.useProgram(debugGeoShader)
         for (let i = 0; i < sourceList.length; ++i) {
             let line = sourceList[i]
-            if (line[1][0] !== 'cube' && line[1][0] !== 'sphere') {
+            if (line[1][0] !== 'box' && line[1][0] !== 'ball') {
                 continue;
             }
             let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
