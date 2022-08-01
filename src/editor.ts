@@ -9,7 +9,6 @@ import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 declare const k_tickMillis: number
-declare const k_mouseSensitivity: number
 
 let yaw: number
 let pitch: number
@@ -380,7 +379,6 @@ let m4IInvert = (a: Mat4): Mat4 => {
   let b09 = a21 * a32 - a22 * a31;
   let b10 = a21 * a33 - a23 * a31;
   let b11 = a22 * a33 - a23 * a32;
-  // Calculate the determinant
   let det =
     b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
   if (!det) {

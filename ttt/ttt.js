@@ -115,10 +115,6 @@ let T=(td, only_this_index=-1,stack_depth=0) => {
                                 .map(([a,b])=>[Math.hypot(x-a,y-b),a,b])
                                 .sort(([a],[b])=>a-b)
                             let amount = Math.max(0,1-.5*Math.abs(d0-d1));
-
-                            // Take the color value (first 3 nibbles) and
-                            // randomize the alpha value (last nibble)
-                            // between 0 and the input alpha.
                             fill_rect(x, y, 1, 1, 0, 0, (color&0xfff0) + amount*(color&15));
                         }
                     }
