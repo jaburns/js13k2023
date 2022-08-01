@@ -52,8 +52,24 @@ const buildShaderExternalNamesTable = () => {
     }
 }
 
+const generateDebugShaderFile = () => {
+    let outLines = []
+
+    sh.ls('shaders').forEach(x => {
+        let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
+
+        for (const k in constantsJson)
+            code = code.replace(new RegExp( k, 'g' ), constantsJson[k])
+
+        outLines.push(`export let ${x.replace('.', '_')} = \`${code}\``)
+    })
+
+    fs.writeFileSync('src/shaders.gen.ts', outLines.join('\n'))
+}
+
 const generateShaderFile = () => {
     sh.mkdir('-p', 'shadersTmp')
+
     sh.ls('shaders').forEach(x => {
         let code = fs.readFileSync(path.resolve('shaders', x), 'utf8')
 
@@ -66,31 +82,16 @@ const generateShaderFile = () => {
         fs.writeFileSync(path.resolve('shadersTmp', x), code)
     })
 
-    let noRenames = ['main']
+    const noRenames = ['main']
 
-    if (DEBUG) {
-        run(MONO_RUN + 'tools/shader_minifier.exe' +
-            ' --no-renaming' +
-            ' --aggressive-inlining --format js -o build/shaders.js --preserve-externals shadersTmp/*')
-    } else {
-        run(MONO_RUN + 'tools/shader_minifier.exe' +
-            ' --no-renaming-list ' + noRenames.join(',') +
-            ' --aggressive-inlining --format js -o build/shaders.js --preserve-externals shadersTmp/*')
-    }
+    run(MONO_RUN + 'tools/shader_minifier.exe' +
+        ' --no-renaming-list ' + noRenames.join(',') +
+        ' --aggressive-inlining --format js -o build/shaders.js --preserve-externals shadersTmp/*')
 
-    let shaderCode = fs.readFileSync('build/shaders.js', 'utf8').replace(/\r/g, '')
-
-    let shaderLines = shaderCode
+    const shaderCode = fs.readFileSync('build/shaders.js', 'utf8').replace(/\r/g, '')
         .split('\n')
         .map(x => x.replace(/^var/, 'export let'))
-
-    shaderCode = shaderLines.join('\n')
-
-    if (DEBUG) {
-        shaderCode = shaderCode.replace(/;/g, ';\\n`+\n`');
-        shaderCode = shaderCode.replace(/{/g, '{\\n`+\n`');
-        shaderCode = shaderCode.replace(/}/g, '}\\n`+\n`');
-    }
+        .join('\n')
 
     fs.writeFileSync('src/shaders.gen.ts', shaderCode)
 
@@ -118,9 +119,12 @@ const main = () => {
     sh.cd(__dirname)
     sh.mkdir('-p', 'build')
 
-    buildShaderExternalNamesTable()
-
-    generateShaderFile();
+    if (DEBUG) {
+        generateDebugShaderFile();
+    } else {
+        buildShaderExternalNamesTable()
+        generateShaderFile();
+    }
 
     run('tsc --outDir build')
 
