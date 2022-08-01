@@ -164,17 +164,24 @@ let update = (dt: number, inputs: InputsFrame): void => {
         yaw %= 2*Math.PI
     }
     if (objectDragging !== false && (inputs.mouseAccX !== 0 || inputs.mouseAccY !== 0)) {
-        let pos = sourceList[objectDragging][1].slice(2,5).map(x => parseInt(x)) as any as Vec3
+        let offset = 2
 
-        if (inputs.keysDown['X']) {
-            pos = v3Add(pos, [Math.sign(v3Dot(mouseRayDir, [0,0,-1]))*inputs.mouseAccX, 0, 0])
-        } else if (inputs.keysDown['Y']) {
-            pos = v3Add(pos, [0,-inputs.mouseAccY, 0])
-        } else if (inputs.keysDown['Z']) {
-            pos = v3Add(pos, [0, 0, Math.sign(v3Dot(mouseRayDir, [1,0,0]))*inputs.mouseAccX])
+        if (inputs.keysDown['E']) {
+            offset = 5
+        } else if (inputs.keysDown['R']) {
+            offset = 8
         }
 
-        sourceList[objectDragging][1].splice(2,3,...pos.map(x => x.toString()))
+        let vals = sourceList[objectDragging][1].slice(offset,offset+3).map(x => parseInt(x)) as any as Vec3
+        if (inputs.keysDown['X']) {
+            vals = v3Add(vals, [Math.sign(v3Dot(mouseRayDir, [0,0,-1]))*inputs.mouseAccX, 0, 0])
+        } else if (inputs.keysDown['Y']) {
+            vals = v3Add(vals, [0,-inputs.mouseAccY, 0])
+        } else if (inputs.keysDown['Z']) {
+            vals = v3Add(vals, [0, 0, Math.sign(v3Dot(mouseRayDir, [1,0,0]))*inputs.mouseAccX])
+        }
+        sourceList[objectDragging][1].splice(offset,3,...vals.map(x => x.toString()))
+
         rebuildSourceText()
         rebuildScene()
     }
