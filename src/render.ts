@@ -68,13 +68,15 @@ export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
 
     G.bindBuffer(gl_ARRAY_BUFFER, self.normalBuffer)
     posLoc = G.getAttribLocation(shaderProg, 'a_normal')
-    G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+    if (posLoc >= 0) {
+        G.enableVertexAttribArray(posLoc)
+        G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl_ARRAY_BUFFER, self.uvTagBuffer)
-    posLoc = G.getAttribLocation(shaderProg, 'a_uvTag')
-    G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+        G.bindBuffer(gl_ARRAY_BUFFER, self.uvTagBuffer)
+        posLoc = G.getAttribLocation(shaderProg, 'a_uvTag')
+        G.enableVertexAttribArray(posLoc)
+        G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+    }
 
     G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.indexBuffer)
     G.drawElements(gl_TRIANGLES, self.indexBufferLen, gl_UNSIGNED_SHORT, 0)
@@ -119,9 +121,21 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     modelGeoDraw(worldGetGeo(), mainShader)
 
     // Skybox
-    // G.disable(gl_CULL_FACE)
-    // G.useProgram(skyShader)
-    // G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
-    // modelGeoDraw(worldGetSky(), skyShader)
-    // G.enable(gl_CULL_FACE)
+    G.disable(gl_CULL_FACE)
+    G.useProgram(skyShader)
+    G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
+    modelGeoDraw(worldGetSky(), skyShader)
+    G.enable(gl_CULL_FACE)
+
+    //let sky = worldGetSky()
+    //G.disable(gl_CULL_FACE)
+    //G.useProgram(skyShader)
+    //G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
+    //G.bindBuffer(gl_ARRAY_BUFFER, worldGetSky().vertexBuffer)
+    //let posLoc = G.getAttribLocation(skyShader, 'a_position')
+    //G.enableVertexAttribArray(posLoc)
+    //G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+    //G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, sky.indexBuffer)
+    //G.drawElements(gl_TRIANGLES, sky.indexBufferLen, gl_UNSIGNED_SHORT, 0)
+    //G.enable(gl_CULL_FACE)
 }
