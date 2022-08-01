@@ -2,8 +2,8 @@
 precision highp float;
 //]
 
-varying vec3 v_normal;
-varying vec3 v_uvTag;
+//varying vec3 v_normal;
+//varying vec3 v_uvTag;
 
 uniform vec3 u_color;
 

@@ -1,8 +1,8 @@
 import { csgSolidBake, csgSolidSphere, ModelGeo } from "./csg"
-import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
+import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_STATIC_DRAW, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
 import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
-import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag } from "./shaders.gen"
+import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag, debugRay_vert, debugRay_frag } from "./shaders.gen"
 import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 
@@ -24,6 +24,7 @@ let ivp: Mat4
 let handleGeo: ModelGeo
 let mainShader: WebGLProgram
 let debugLinesShader: WebGLProgram
+let debugRayShader: WebGLProgram
 let debugGeoShader: WebGLProgram
 let mouseRayOrigin: Vec3
 let mouseRayDir: Vec3
@@ -48,8 +49,11 @@ export let editorInit = (): void => {
 
     mainShader = shaderCompile(main_vert, main_frag)
     debugGeoShader = shaderCompile(main_vert, debugGeo_frag)
+    debugRayShader = shaderCompile(debugRay_vert, debugRay_frag)
     debugLinesShader = shaderCompile(debugLines_vert, debugLines_frag)
     lastInputs = inputsNew()
+
+    drawRayInit()
 
     ivp = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]
     mouseRayOrigin = [0,0,0]
@@ -282,6 +286,13 @@ let render = (): void => {
         G.uniformMatrix4fv(G.getUniformLocation(debugLinesShader, 'u_mvp'), false, vp)
         modelGeoDrawLines(worldGetGeo(), debugLinesShader)
     }
+
+    G.disable(gl_DEPTH_TEST)
+    G.useProgram(debugRayShader)
+    drawRay(vp,[-1000,0,0],[1000,0,0],[1,0,0])
+    drawRay(vp,[0,-1000,0],[0,1000,0],[0,1,0])
+    drawRay(vp,[0,0,-1000],[0,0,1000],[0,.5,1])
+    G.enable(gl_DEPTH_TEST)
 }
 
 let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
@@ -299,6 +310,28 @@ let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     G.drawElements(gl_LINES, self.lines!.indexBufferLen, gl_UNSIGNED_SHORT, 0)
 }
 
+let drawRayIndex: WebGLBuffer;
+let drawRayVertex: WebGLBuffer;
+let drawRayInit = (): void => {
+    drawRayIndex = G.createBuffer()!
+    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, drawRayIndex)
+    G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1]), gl_STATIC_DRAW)
+    drawRayVertex = G.createBuffer()!
+    G.bindBuffer(gl_ARRAY_BUFFER, drawRayVertex)
+    G.bufferData(gl_ARRAY_BUFFER, new Float32Array([0,1]), gl_STATIC_DRAW)
+}
+let drawRay = (vp: Mat4, a: Vec3, b: Vec3, color: Vec3): void => {
+    G.uniform3fv(G.getUniformLocation(debugRayShader, 'u_color'), color)
+    G.uniform3fv(G.getUniformLocation(debugRayShader, 'u_pos0'), a)
+    G.uniform3fv(G.getUniformLocation(debugRayShader, 'u_pos1'), b)
+    G.uniformMatrix4fv(G.getUniformLocation(debugRayShader, 'u_mvp'), false, vp)
+    G.bindBuffer(gl_ARRAY_BUFFER, drawRayVertex)
+    let posLoc = G.getAttribLocation(debugRayShader, 'a_index')
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 1, gl_FLOAT, false, 0, 0)
+    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, drawRayIndex)
+    G.drawElements(gl_LINES, 2, gl_UNSIGNED_SHORT, 0)
+}
 
 let m4MulVec4 = (m: Mat4, [x,y,z,w]: [number,number,number,number]): Vec3 => {
     let [ox, oy, oz, ow] = [
