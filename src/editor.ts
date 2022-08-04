@@ -1,5 +1,5 @@
 import { csgSolidBake, csgSolidSphere, ModelGeo } from "./csg"
-import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_STATIC_DRAW, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
+import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_STATIC_DRAW, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
 import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag, debugRay_vert, debugRay_frag } from "./shaders.gen"
@@ -251,6 +251,7 @@ let render = (): void => {
 
     G.clearColor(0,0,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
+    G.enable(gl_CULL_FACE)
 
     G.useProgram(mainShader)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, vp)

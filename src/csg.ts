@@ -282,37 +282,63 @@ export let csgSolidCube = (
     sdf: `${F_CUBE}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}],${yaw},${pitch},${roll})`
 })
 
-export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, radius: number): CsgSolid => {
-    const stacks = 16, slices = 2 * stacks
+export let csgSolidSphere = (
+    tag: number,
+    cx: number, cy: number, cz: number,
+//  rx: number, ry: number, rz: number,
+//  yaw: number, pitch: number, roll: number,
+    radius: number
+): CsgSolid => {
+    const resolution = 4
+
+    //const rx = 10, ry = 20, rz = 30
+    const rx = 0, ry = 0, rz = 0
+
     let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
     let normal: Vec3
     let uv: Vec2
+
+    // theta: 0-4 longitude, phi: 0-2 latitude pole to pole
     let vertex = (theta: number, phi: number) => (
         uv = [4*theta * (radius|0), 4*phi*(radius|0)],
-        theta *= 2*Math.PI,
-        phi *= Math.PI,
+        theta *= Math.PI/2,
+        phi *= Math.PI/2,
         normal = [
             Math.cos(theta) * Math.sin(phi),
             Math.cos(phi),
             Math.sin(theta) * Math.sin(phi),
         ],
         vertices.push({
-            pos: v3AddScale([cx,cy,cz], normal, radius),
+            pos: v3AddScale(v3Add(v3Scratch,[cx,cy,cz]), normal, radius),
             normal,
             uv,
         })
     )
-    for (let i = 0; i < slices; i++) {
-        for (var j = 0; j < stacks; j++) {
-            vertices = []
-            vertex(i/slices, j/stacks)
-            if (j > 0) vertex((i + 1) / slices, j / stacks)
-            if (j < stacks - 1) vertex((i + 1) / slices, (j + 1) / stacks)
-            vertex(i / slices, (j + 1) / stacks)
-            polys.push(csgPolygonNew(vertices, tag))
+
+    for (let k = 0; k < 8; ++k) { // corners
+        for (let i = 0; i < resolution; ++i) { // longitudes
+            for (var j = 0; j < resolution; ++j) { // latitudes
+                let i0 = i/resolution +  k%4,    i1 = (i+1)/resolution +  k%4
+                let j0 = j/resolution + (k/4|0), j1 = (j+1)/resolution + (k/4|0)
+
+                v3Scratch = [
+                    -rx * (2 * (!!(k & 1) as any ^ !!(k & 2) as any) - 1),
+                    -ry * (2 * (!!(k & 4) as any) - 1),
+                    -rz * (2 * (!!(k & 2) as any) - 1),
+                ]
+
+                vertices = []
+                vertex(i0, j0)
+                j0 > 0.01 && vertex(i1, j0)
+                j1 < 1.99 && vertex(i1, j1)
+                vertex(i0, j1)
+
+                polys.push(csgPolygonNew(vertices, tag))
+            }
         }
     }
+
     return {
         polys,
         sdf: `${F_SPHERE}(${V_POSITION},[${cx},${cy},${cz}],${radius})`
