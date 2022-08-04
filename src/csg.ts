@@ -318,7 +318,7 @@ export let csgSolidSphere = (
 
     for (let k = 0; k < 8; ++k) { // corners
         for (let i = 0; i < resolution; ++i) { // longitudes
-            for (var j = 0; j < resolution; ++j) { // latitudes
+            for (let j = 0; j < resolution; ++j) { // latitudes
                 let i0 = i/resolution +  k%4,    i1 = (i+1)/resolution +  k%4
                 let j0 = j/resolution + (k/4|0), j1 = (j+1)/resolution + (k/4|0)
 
