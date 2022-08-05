@@ -246,6 +246,68 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
+export let csgSolidLine = (
+    tag: number,
+    cx: number, cy: number, cz: number,
+    h: number, r0: number, r1: number,
+    yaw: number, pitch: number, roll: number,
+): CsgSolid => {
+    const resolution = 4 // TODO resolution should be function of max(r0,r1)
+
+    let vertices: CsgVertex[] = []
+    let polys: CsgPolygon[] = []
+    let normal: Vec3
+    let uv: Vec2
+    let rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
+
+    // TODO share this fn with csgSolidBox
+    // theta: 0-4 longitude, phi: 0-2 latitude pole to pole
+    let sphereVertex = (offset: Vec3, theta: number, phi: number, radius: number) => (
+        uv = [4*theta * (radius|0), 4*phi*(radius|0)],
+        theta *= Math.PI/2,
+        phi *= Math.PI/2,
+        normal = [
+            Math.cos(theta) * Math.sin(phi),
+            Math.cos(phi),
+            Math.sin(theta) * Math.sin(phi),
+        ],
+        vertices.push({
+            pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3AddScale(v3Mul(offset, [1,1,1]), normal, radius))),
+            normal: m4MulPoint(rot, normal),
+            uv,
+        })
+    )
+
+    let d = r0 - r1
+    let phi = Math.atan(d / h)
+    let cos = Math.cos(phi)
+    let sin = Math.sin(phi)
+
+    let offsetY0 = cy + r0 * sin
+    let walkR0 = r0 * cos
+
+    let offsetY1 = cy + h + r1 * sin
+    let walkR1 = r1 * cos
+
+    // cone runs from radius walkR0 at offsetY0 to radius walkR1 at offsetY1
+    for (let y = 0; y < 10; ++y) {
+        for (let i0 = 0; i0 < 16; ++i0) {
+            let i1 = i0+1, y1 = y + 1
+            vertices = []
+            sphereVertex([0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i0/16, 1, (walkR1-walkR0)*(y/10)+walkR0)
+            sphereVertex([0,(y1/10)*(offsetY1-offsetY0)+offsetY0,0],  4*i0/16, 1, (walkR1-walkR0)*(y1/10)+walkR0)
+            sphereVertex([0,(y1/10)*(offsetY1-offsetY0)+offsetY0,0],  4*i1/16, 1, (walkR1-walkR0)*(y1/10)+walkR0)
+            sphereVertex([0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i1/16, 1, (walkR1-walkR0)*(y/10)+walkR0)
+            polys.push(csgPolygonNew(vertices, tag))
+        }
+    }
+
+    return {
+        polys,
+        sdf: `10000`
+    }
+}
+
 export let csgSolidBox = (
     tag: number,
     cx: number, cy: number, cz: number,
@@ -253,7 +315,7 @@ export let csgSolidBox = (
     yaw: number, pitch: number, roll: number,
     radius: number
 ): CsgSolid => {
-    const resolution = 4
+    const resolution = 4 // TODO resolution should be function of radius
 
     let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
@@ -262,7 +324,7 @@ export let csgSolidBox = (
     let rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
 
     // theta: 0-4 longitude, phi: 0-2 latitude pole to pole
-    let cornerVertex = (offset: Vec3, theta: number, phi: number) => (
+    let sphereVertex = (offset: Vec3, theta: number, phi: number) => (
         uv = [4*theta * (radius|0), 4*phi*(radius|0)],
         theta *= Math.PI/2,
         phi *= Math.PI/2,
@@ -282,18 +344,18 @@ export let csgSolidBox = (
         let offset0: Vec3 = [...offsets0].map(x=>2*(x as any)-1) as any
         let offset1: Vec3 = [...offsets1].map(x=>2*(x as any)-1) as any
         vertices = []
-        cornerVertex(offset0, i0*mulA+addA, i0*mulB+addB)
-        cornerVertex(offset1, i0*mulA+addA, i0*mulB+addB)
-        cornerVertex(offset1, i1*mulA+addA, i1*mulB+addB)
-        cornerVertex(offset0, i1*mulA+addA, i1*mulB+addB)
+        sphereVertex(offset0, i0*mulA+addA, i0*mulB+addB)
+        sphereVertex(offset1, i0*mulA+addA, i0*mulB+addB)
+        sphereVertex(offset1, i1*mulA+addA, i1*mulB+addB)
+        sphereVertex(offset0, i1*mulA+addA, i1*mulB+addB)
         polys.push(csgPolygonNew(vertices, tag))
     }
 
     if (radius > 0) {
         // corners
-        for (let k = 0; k < 8; ++k) {
-            for (let i = 0; i < resolution; ++i) { // longitudes
-                for (let j = 0; j < resolution; ++j) { // latitudes
+        for (let i = 0; i < resolution; ++i) { // longitudes
+            for (let j = 0; j < resolution; ++j) { // latitudes
+                for (let k = 0; k < 8; ++k) { // corner
                     let i0 = i/resolution +  k%4,    i1 = (i+1)/resolution +  k%4
                     let j0 = j/resolution + (k/4|0), j1 = (j+1)/resolution + (k/4|0)
 
@@ -304,37 +366,35 @@ export let csgSolidBox = (
                     ]
 
                     vertices = []
-                    cornerVertex(offset, i0, j0)
-                    j0 > 0.01 && cornerVertex(offset, i1, j0)
-                    j1 < 1.99 && cornerVertex(offset, i1, j1)
-                    cornerVertex(offset, i0, j1)
+                    sphereVertex(offset, i0, j0)
+                    j0 > 0.01 && sphereVertex(offset, i1, j0)
+                    j1 < 1.99 && sphereVertex(offset, i1, j1)
+                    sphereVertex(offset, i0, j1)
                     polys.push(csgPolygonNew(vertices, tag))
+
+                    // edges
+                    if (!k && !j) {
+                        defEdge(i0,i1,'011','010',0,0,1,1)
+                        defEdge(i0,i1,'110','111',0,2,1,1)
+                        defEdge(i0,i1,'001','000',0,0,1,0)
+                        defEdge(i0,i1,'100','101',0,2,1,0)
+
+                        defEdge(i0,i1,'010','110',0,1,1,1)
+                        defEdge(i0,i1,'111','011',0,3,1,1)
+                        defEdge(i0,i1,'000','100',0,1,1,0)
+                        defEdge(i0,i1,'101','001',0,3,1,0)
+
+                        defEdge(i0,i1,'010','000',1,0,0,1)
+                        defEdge(i0,i1,'110','100',1,1,0,1)
+                        defEdge(i0,i1,'111','101',1,2,0,1)
+                        defEdge(i0,i1,'011','001',1,3,0,1)
+                    }
                 }
             }
         }
-
-        // edges
-        for (let i = 0; i < resolution; ++i) { // latitudes
-            let i0 = i/resolution, i1 = (i+1)/resolution
-
-            defEdge(i0,i1,'011','010',0,0,1,1)
-            defEdge(i0,i1,'110','111',0,2,1,1)
-            defEdge(i0,i1,'001','000',0,0,1,0)
-            defEdge(i0,i1,'100','101',0,2,1,0)
-
-            defEdge(i0,i1,'010','110',0,1,1,1)
-            defEdge(i0,i1,'111','011',0,3,1,1)
-            defEdge(i0,i1,'000','100',0,1,1,0)
-            defEdge(i0,i1,'101','001',0,3,1,0)
-
-            defEdge(i0,i1,'010','000',1,0,0,1)
-            defEdge(i0,i1,'110','100',1,1,0,1)
-            defEdge(i0,i1,'111','101',1,2,0,1)
-            defEdge(i0,i1,'011','001',1,3,0,1)
-        }
     }
 
-    if (rx > 0 && ry > 0 && rz > 0) {
+    if (rx && ry && rz) {
         // faces
         [
             [[0, 4, 6, 2], [-1, 0, 0]],

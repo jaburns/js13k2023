@@ -251,7 +251,7 @@ let render = (): void => {
 
     G.clearColor(0,0,0,1)
     G.clear(gl_COLOR_BUFFER_BIT)
-    G.enable(gl_CULL_FACE)
+    //G.enable(gl_CULL_FACE)
 
     G.useProgram(mainShader)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, vp)
@@ -270,7 +270,7 @@ let render = (): void => {
         G.useProgram(debugGeoShader)
         for (let i = 0; i < sourceList.length; ++i) {
             let line = sourceList[i]
-            if (line[1][0] !== 'box' && line[1][0] !== 'ball') {
+            if (line[1][0] !== 'box' && line[1][0] !== 'line') {
                 continue;
             }
             let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3

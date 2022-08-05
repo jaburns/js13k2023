@@ -1,4 +1,4 @@
-import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete } from "./csg"
+import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidLine, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
 import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
@@ -48,7 +48,8 @@ export let evaluateNewWorld = (sourceList: [number,string[]][]): string => {
 }
 
 type WorldDefSolid =
-    ['box',   number, number,number,number, number,number,number, number,number,number, number ]
+    ['box',   number, number,number,number, number,number,number, number,number,number, number ] |
+    ['line',  number, number,number,number, number,number,number, number,number,number ]
 type WorldDefOp = ['add'] | ['sub']
 type WorldDefItem = WorldDefSolid | WorldDefOp
 type WorldDef = WorldDefItem[]
@@ -60,12 +61,13 @@ let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
     ]
     switch (def[0]) {
         case 'box': return result('csgSolidBox', csgSolidBox)
+        case 'line': return result('csgSolidLine', csgSolidLine)
         default: throw new Error()
     }
 }
 
 let worldDefItemIsSolid = (def: WorldDefItem): boolean =>
-    def[0] === 'box'
+    def[0] === 'box' || def[0] === 'line'
 
 let evaluateWorldDefOp = (def: WorldDefOp, solidA: [CsgSolid, string], solidB: [CsgSolid, string]): [CsgSolid, string] => {
     let result = (name: string, fn: Function): [CsgSolid, string] => [
