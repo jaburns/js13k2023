@@ -4,7 +4,7 @@ import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
 
-let [worldGeo,worldFn]=csgSolidBake(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidBox(0,0,-100,0,1000,100,1000,0,0,0,0),csgSolidBox(1,0,20,0,183,22,112,0,0,0,20)),csgSolidBox(2,-193,20,0,70,30,24,0,0,0,20)),csgSolidBox(1,-269,-14,0,86,19,13,0,0,-10,0)))
+let [worldGeo,worldFn]=csgSolidBake(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidLine(0,0,-100,0,1000,100,1000,0,0,0),csgSolidBox(1,0,20,0,183,22,112,0,0,0,20)),csgSolidBox(2,-193,20,0,70,30,24,0,0,0,20)),csgSolidBox(1,-269,-14,0,86,19,13,0,0,-10,0)))
 export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-100","0","1000","100","1000","0","0","0","0"]],[0,["box","1","0","20","0","183","22","112","0","0","0","20"]],[0,["sub"]],[0,["box","2","-193","20","0","70","30","24","0","0","0","20"]],[0,["sub"]],[0,["box","1","-269","-14","0","86","19","13","0","0","-10","0"]],[0,["add"]]]
 
 // ----------------------

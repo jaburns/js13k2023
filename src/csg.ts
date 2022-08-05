@@ -1,6 +1,6 @@
 // Ported from https://github.com/evanw/csg.js
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul, Mat4 } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;
@@ -246,6 +246,28 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
+let rot: Mat4
+let accVertices: CsgVertex[]
+let sphereVertexCenter: Vec3
+let sphereVertexOffsetScale: Vec3
+
+// theta: 0-4 longitude, phi: 0-2 latitude pole to pole
+let sphereVertex = (radius: number, offset: Vec3, theta: number, phi: number) => {
+    theta *= Math.PI/2
+    phi *= Math.PI/2
+    let uv: Vec2 = [4*theta * (radius|0), 4*phi*(radius|0)]
+    let normal: Vec3 = [
+        Math.cos(theta) * Math.sin(phi),
+        Math.cos(phi),
+        Math.sin(theta) * Math.sin(phi),
+    ]
+    accVertices.push({
+        pos: v3Add(sphereVertexCenter, m4MulPoint(rot, v3AddScale(v3Mul(offset, sphereVertexOffsetScale), normal, radius))),
+        normal: m4MulPoint(rot, normal),
+        uv,
+    })
+}
+
 export let csgSolidLine = (
     tag: number,
     cx: number, cy: number, cz: number,
@@ -254,29 +276,10 @@ export let csgSolidLine = (
 ): CsgSolid => {
     const resolution = 4 // TODO resolution should be function of max(r0,r1)
 
-    let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
-    let normal: Vec3
-    let uv: Vec2
-    let rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
-
-    // TODO share this fn with csgSolidBox
-    // theta: 0-4 longitude, phi: 0-2 latitude pole to pole
-    let sphereVertex = (offset: Vec3, theta: number, phi: number, radius: number) => (
-        uv = [4*theta * (radius|0), 4*phi*(radius|0)],
-        theta *= Math.PI/2,
-        phi *= Math.PI/2,
-        normal = [
-            Math.cos(theta) * Math.sin(phi),
-            Math.cos(phi),
-            Math.sin(theta) * Math.sin(phi),
-        ],
-        vertices.push({
-            pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3AddScale(v3Mul(offset, [1,1,1]), normal, radius))),
-            normal: m4MulPoint(rot, normal),
-            uv,
-        })
-    )
+    sphereVertexCenter = [cx,cy,cz]
+    sphereVertexOffsetScale = [1,1,1]
+    rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
 
     let d = r0 - r1
     let phi = Math.atan(d / h)
@@ -293,12 +296,12 @@ export let csgSolidLine = (
     for (let y = 0; y < 10; ++y) {
         for (let i0 = 0; i0 < 16; ++i0) {
             let i1 = i0+1, y1 = y + 1
-            vertices = []
-            sphereVertex([0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i0/16, 1, (walkR1-walkR0)*(y/10)+walkR0)
-            sphereVertex([0,(y1/10)*(offsetY1-offsetY0)+offsetY0,0],  4*i0/16, 1, (walkR1-walkR0)*(y1/10)+walkR0)
-            sphereVertex([0,(y1/10)*(offsetY1-offsetY0)+offsetY0,0],  4*i1/16, 1, (walkR1-walkR0)*(y1/10)+walkR0)
-            sphereVertex([0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i1/16, 1, (walkR1-walkR0)*(y/10)+walkR0)
-            polys.push(csgPolygonNew(vertices, tag))
+            accVertices = []
+            sphereVertex((walkR1-walkR0)*(y/10)+walkR0,  [0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i0/16, 1)
+            sphereVertex((walkR1-walkR0)*(y1/10)+walkR0, [0,(y1/10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i0/16, 1)
+            sphereVertex((walkR1-walkR0)*(y1/10)+walkR0, [0,(y1/10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i1/16, 1)
+            sphereVertex((walkR1-walkR0)*(y/10)+walkR0,  [0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i1/16, 1)
+            polys.push(csgPolygonNew(accVertices, tag))
         }
     }
 
@@ -317,38 +320,20 @@ export let csgSolidBox = (
 ): CsgSolid => {
     const resolution = 4 // TODO resolution should be function of radius
 
-    let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
-    let normal: Vec3
-    let uv: Vec2
-    let rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
-
-    // theta: 0-4 longitude, phi: 0-2 latitude pole to pole
-    let sphereVertex = (offset: Vec3, theta: number, phi: number) => (
-        uv = [4*theta * (radius|0), 4*phi*(radius|0)],
-        theta *= Math.PI/2,
-        phi *= Math.PI/2,
-        normal = [
-            Math.cos(theta) * Math.sin(phi),
-            Math.cos(phi),
-            Math.sin(theta) * Math.sin(phi),
-        ],
-        vertices.push({
-            pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3AddScale(v3Mul(offset, [-rx,-ry,-rz]), normal, radius))),
-            normal: m4MulPoint(rot, normal),
-            uv,
-        })
-    )
+    rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
+    sphereVertexCenter = [cx,cy,cz]
+    sphereVertexOffsetScale = [-rx,-ry,-rz]
 
     let defEdge = (i0: number, i1: number, offsets0: string, offsets1: string, mulA: number, addA: number, mulB: number, addB: number): void => {
         let offset0: Vec3 = [...offsets0].map(x=>2*(x as any)-1) as any
         let offset1: Vec3 = [...offsets1].map(x=>2*(x as any)-1) as any
-        vertices = []
-        sphereVertex(offset0, i0*mulA+addA, i0*mulB+addB)
-        sphereVertex(offset1, i0*mulA+addA, i0*mulB+addB)
-        sphereVertex(offset1, i1*mulA+addA, i1*mulB+addB)
-        sphereVertex(offset0, i1*mulA+addA, i1*mulB+addB)
-        polys.push(csgPolygonNew(vertices, tag))
+        accVertices = []
+        sphereVertex(radius, offset0, i0*mulA+addA, i0*mulB+addB)
+        sphereVertex(radius, offset1, i0*mulA+addA, i0*mulB+addB)
+        sphereVertex(radius, offset1, i1*mulA+addA, i1*mulB+addB)
+        sphereVertex(radius, offset0, i1*mulA+addA, i1*mulB+addB)
+        polys.push(csgPolygonNew(accVertices, tag))
     }
 
     if (radius > 0) {
@@ -365,12 +350,12 @@ export let csgSolidBox = (
                         (2 * (!!(k & 2) as any) - 1),
                     ]
 
-                    vertices = []
-                    sphereVertex(offset, i0, j0)
-                    j0 > 0.01 && sphereVertex(offset, i1, j0)
-                    j1 < 1.99 && sphereVertex(offset, i1, j1)
-                    sphereVertex(offset, i0, j1)
-                    polys.push(csgPolygonNew(vertices, tag))
+                    accVertices = []
+                    sphereVertex(radius, offset, i0, j0)
+                    j0 > 0.01 && sphereVertex(radius, offset, i1, j0)
+                    j1 < 1.99 && sphereVertex(radius, offset, i1, j1)
+                    sphereVertex(radius, offset, i0, j1)
+                    polys.push(csgPolygonNew(accVertices, tag))
 
                     // edges
                     if (!k && !j) {
