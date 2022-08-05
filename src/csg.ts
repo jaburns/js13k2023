@@ -1,6 +1,6 @@
 // Ported from https://github.com/evanw/csg.js
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, Mat4, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;
