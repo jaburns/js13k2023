@@ -155,6 +155,7 @@ const main = () => {
     }
 
     x = "(()=>{let G=CC.getContext('webgl',{antialias:!1});" + x + "})()"
+    let noRr = x
 
     if (!DEBUG) {
         fs.writeFileSync('/tmp/aaa.js', x)
@@ -163,6 +164,7 @@ const main = () => {
     }
 
     fs.writeFileSync('build/index.html', `<canvas id=CC style=image-rendering:pixelated><script>${x}</script>`)
+    fs.writeFileSync('build/index_no_rr.html', `<canvas id=CC style=image-rendering:pixelated><script>${noRr}</script>`)
 
     if (!DEBUG) {
         run(advzipPath + ' --shrink-insane -i 10 -a out.zip build/index.html')

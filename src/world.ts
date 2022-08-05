@@ -1,17 +1,16 @@
-import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidOpSubtract, csgSolidOpUnion, csgSolidSphere, modelGeoDelete } from "./csg"
+import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
 import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
 
-
-let [worldGeo,worldFn]=csgSolidBake(csgSolidBox(0,0,0,0,10,10,10,0,0,0,0))
-export let worldSourceList:[number,string[]][]=[[1,["box","0","10","20","30","10","10","10","0","0","0","10"]]]
+let [worldGeo,worldFn]=csgSolidBake(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidBox(0,0,-100,0,1000,100,1000,0,0,0,0),csgSolidBox(1,0,20,0,183,22,112,0,0,0,20)),csgSolidBox(2,-193,20,0,70,30,24,0,0,0,20)),csgSolidBox(1,-269,-14,0,86,19,13,0,0,-10,0)))
+export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-100","0","1000","100","1000","0","0","0","0"]],[0,["box","1","0","20","0","183","22","112","0","0","0","20"]],[0,["sub"]],[0,["box","2","-193","20","0","70","30","24","0","0","0","20"]],[0,["sub"]],[0,["box","1","-269","-14","0","86","19","13","0","0","-10","0"]],[0,["add"]]]
 
 // ----------------------
 
-let skyboxGeo = csgSolidBake(csgSolidBox(0, 0,0,0, 1,1,1, 0,0,0, 0))[0]
-let playerGeo = csgSolidBake(csgSolidSphere(2, 0,10,0, 10))[0]
+let skyboxGeo = csgSolidBake(csgSolidBox(0,  0,0,0, 1,1,1, 0,0,0,  0))[0]
+let playerGeo = csgSolidBake(csgSolidBox(2, 0,10,0, 0,0,0, 0,0,0, 10))[0]
 
 export let worldGetGeo = (): ModelGeo => worldGeo
 export let worldGetSky = (): ModelGeo => skyboxGeo
@@ -50,7 +49,6 @@ export let evaluateNewWorld = (sourceList: [number,string[]][]): string => {
 
 type WorldDefSolid =
     ['box',   number, number,number,number, number,number,number, number,number,number, number ]
-  | ['ball', number, number,number,number, number ]
 type WorldDefOp = ['add'] | ['sub']
 type WorldDefItem = WorldDefSolid | WorldDefOp
 type WorldDef = WorldDefItem[]
@@ -62,13 +60,12 @@ let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
     ]
     switch (def[0]) {
         case 'box': return result('csgSolidBox', csgSolidBox)
-        case 'ball': return result('csgSolidSphere', csgSolidSphere)
         default: throw new Error()
     }
 }
 
 let worldDefItemIsSolid = (def: WorldDefItem): boolean =>
-    def[0] === 'box' || def[0] === 'ball'
+    def[0] === 'box'
 
 let evaluateWorldDefOp = (def: WorldDefOp, solidA: [CsgSolid, string], solidB: [CsgSolid, string]): [CsgSolid, string] => {
     let result = (name: string, fn: Function): [CsgSolid, string] => [

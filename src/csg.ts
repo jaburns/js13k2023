@@ -194,8 +194,7 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
 // ----------------------------------------------------------------------------
 
 const V_POSITION  = 'a'
-const F_CUBE      = 'b'
-const F_SPHERE    = 'c'
+const F_BOX       = 'b'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
@@ -279,86 +278,100 @@ export let csgSolidBox = (
         })
     )
 
-    // corners
-    for (let k = 0; k < 8; ++k) {
-        for (let i = 0; i < resolution; ++i) { // longitudes
-            for (let j = 0; j < resolution; ++j) { // latitudes
-                let i0 = i/resolution +  k%4,    i1 = (i+1)/resolution +  k%4
-                let j0 = j/resolution + (k/4|0), j1 = (j+1)/resolution + (k/4|0)
-
-                let offset: Vec3 = [
-                    (2 * (!!(k & 1) as any ^ !!(k & 2) as any) - 1),
-                    (2 * (!!(k & 4) as any) - 1),
-                    (2 * (!!(k & 2) as any) - 1),
-                ]
-
-                vertices = []
-                cornerVertex(offset, i0, j0)
-                j0 > 0.01 && cornerVertex(offset, i1, j0)
-                j1 < 1.99 && cornerVertex(offset, i1, j1)
-                cornerVertex(offset, i0, j1)
-                polys.push(csgPolygonNew(vertices, tag))
-            }
-        }
-    }
-
-    // edges
-    for (let j = 0; j < resolution; ++j) { // latitudes
-        let j0 = j/resolution, j1 = (j+1)/resolution
-
-        let offset0: Vec3 = [ 1, 1,-1];
-        let offset1: Vec3 = [ 1, 1, 1];
-
+    let defEdge = (i0: number, i1: number, offsets0: string, offsets1: string, mulA: number, addA: number, mulB: number, addB: number): void => {
+        let offset0: Vec3 = [...offsets0].map(x=>2*(x as any)-1) as any
+        let offset1: Vec3 = [...offsets1].map(x=>2*(x as any)-1) as any
         vertices = []
-        cornerVertex(offset0, 2, j0+1)
-        cornerVertex(offset1, 2, j0+1)
-        cornerVertex(offset1, 2, j1+1)
-        cornerVertex(offset0, 2, j1+1)
+        cornerVertex(offset0, i0*mulA+addA, i0*mulB+addB)
+        cornerVertex(offset1, i0*mulA+addA, i0*mulB+addB)
+        cornerVertex(offset1, i1*mulA+addA, i1*mulB+addB)
+        cornerVertex(offset0, i1*mulA+addA, i1*mulB+addB)
         polys.push(csgPolygonNew(vertices, tag))
     }
 
-    // faces
-    [
-        [[0, 4, 6, 2], [-1, 0, 0]],
-        [[1, 3, 7, 5], [ 1, 0, 0]],
-        [[0, 1, 5, 4], [ 0,-1, 0]],
-        [[2, 6, 7, 3], [ 0, 1, 0]],
-        [[0, 2, 3, 1], [ 0, 0,-1]],
-        [[4, 5, 7, 6], [ 0, 0, 1]]
-    ].map(info => polys.push(csgPolygonNew(
-        info[0].map(i => (
-            v3Scratch = v3AddScale([
-                rx * (2 * (!!(i & 1) as any) - 1),
-                ry * (2 * (!!(i & 2) as any) - 1),
-                rz * (2 * (!!(i & 4) as any) - 1)
-            ], info[1] as any as Vec3, radius),
-            {
-                pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3Scratch)),
-                normal: m4MulPoint(rot, info[1] as any as Vec3),
-                uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
-                    : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
-                    : [v3Scratch[0],v3Scratch[1]]
+    if (radius > 0) {
+        // corners
+        for (let k = 0; k < 8; ++k) {
+            for (let i = 0; i < resolution; ++i) { // longitudes
+                for (let j = 0; j < resolution; ++j) { // latitudes
+                    let i0 = i/resolution +  k%4,    i1 = (i+1)/resolution +  k%4
+                    let j0 = j/resolution + (k/4|0), j1 = (j+1)/resolution + (k/4|0)
+
+                    let offset: Vec3 = [
+                        (2 * (!!(k & 1) as any ^ !!(k & 2) as any) - 1),
+                        (2 * (!!(k & 4) as any) - 1),
+                        (2 * (!!(k & 2) as any) - 1),
+                    ]
+
+                    vertices = []
+                    cornerVertex(offset, i0, j0)
+                    j0 > 0.01 && cornerVertex(offset, i1, j0)
+                    j1 < 1.99 && cornerVertex(offset, i1, j1)
+                    cornerVertex(offset, i0, j1)
+                    polys.push(csgPolygonNew(vertices, tag))
+                }
             }
-        )),
-        tag
-    )))
+        }
+
+        // edges
+        for (let i = 0; i < resolution; ++i) { // latitudes
+            let i0 = i/resolution, i1 = (i+1)/resolution
+
+            defEdge(i0,i1,'011','010',0,0,1,1)
+            defEdge(i0,i1,'110','111',0,2,1,1)
+            defEdge(i0,i1,'001','000',0,0,1,0)
+            defEdge(i0,i1,'100','101',0,2,1,0)
+
+            defEdge(i0,i1,'010','110',0,1,1,1)
+            defEdge(i0,i1,'111','011',0,3,1,1)
+            defEdge(i0,i1,'000','100',0,1,1,0)
+            defEdge(i0,i1,'101','001',0,3,1,0)
+
+            defEdge(i0,i1,'010','000',1,0,0,1)
+            defEdge(i0,i1,'110','100',1,1,0,1)
+            defEdge(i0,i1,'111','101',1,2,0,1)
+            defEdge(i0,i1,'011','001',1,3,0,1)
+        }
+    }
+
+    if (rx > 0 && ry > 0 && rz > 0) {
+        // faces
+        [
+            [[0, 4, 6, 2], [-1, 0, 0]],
+            [[1, 3, 7, 5], [ 1, 0, 0]],
+            [[0, 1, 5, 4], [ 0,-1, 0]],
+            [[2, 6, 7, 3], [ 0, 1, 0]],
+            [[0, 2, 3, 1], [ 0, 0,-1]],
+            [[4, 5, 7, 6], [ 0, 0, 1]]
+        ].map(info => polys.push(csgPolygonNew(
+            info[0].map(i => (
+                v3Scratch = v3AddScale([
+                    rx * (2 * (!!(i & 1) as any) - 1),
+                    ry * (2 * (!!(i & 2) as any) - 1),
+                    rz * (2 * (!!(i & 4) as any) - 1)
+                ], info[1] as any as Vec3, radius),
+                {
+                    pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3Scratch)),
+                    normal: m4MulPoint(rot, info[1] as any as Vec3),
+                    uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
+                        : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
+                        : [v3Scratch[0],v3Scratch[1]]
+                }
+            )),
+            tag
+        )))
+    }
 
     return {
         polys,
-        sdf: `${F_SPHERE}(${V_POSITION},[${cx},${cy},${cz}],${radius})`
+        sdf: `${F_BOX}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}],${yaw},${pitch},${roll},${radius})`
     }
 }
 
-export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, radius: number): CsgSolid =>
-    csgSolidBox(tag, cx, cy, cz, 0, 0, 0, 0, 0, 0, radius)
-
-let sdfCube = (p: Vec3, center: Vec3, radius: Vec3, yaw: number, pitch: number, roll: number): number => (
-    v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), radius),
-    v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0)
+let sdfBox = (p: Vec3, center: Vec3, extents: Vec3, yaw: number, pitch: number, roll: number, radius: number): number => (
+    v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), extents),
+    v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0) - radius
 )
-
-let sdfSphere = (p: Vec3, center: Vec3, radius: number): number =>
-    v3Length(v3Sub(p, center)) - radius
 
 export type SdfFunction = (pos: Vec3) => number
 
@@ -390,11 +403,11 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let linesTagBuf: number[] = []
 
     let innerSdfFunc = new Function(
-        `${V_POSITION},${F_CUBE},${F_SPHERE}`,
+        `${V_POSITION},${F_BOX}`,
         'return ' + self.sdf
     )
     let sdfFunc = (x: Vec3): number => innerSdfFunc(
-        x, sdfCube, sdfSphere
+        x, sdfBox
     )
 
     self.polys.map(poly => {
