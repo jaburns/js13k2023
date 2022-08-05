@@ -1,15 +1,16 @@
-import { CsgSolid, csgSolidBake, csgSolidCube, csgSolidOpSubtract, csgSolidOpUnion, csgSolidSphere, modelGeoDelete } from "./csg"
+import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidOpSubtract, csgSolidOpUnion, csgSolidSphere, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
 import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
 
-let [worldGeo,worldFn]=csgSolidBake(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidCube(0,0,-10,0,100,10,100,45,20,0),csgSolidSphere(1,0,30,0,40)),csgSolidCube(0,0,-30,0,100,10,100,0,0,0)),csgSolidCube(2,50,15,0,10,2,100,45,20,0)))
-export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-10","0","100","10","100","45","20","0"]],[0,["ball","1","0","30","0","40"]],[0,["sub"]],[0,["box","0","0","-30","0","100","10","100","0","0","0"]],[0,["add"]],[0,[""]],[0,["#","Stone","path"]],[0,["box","2","50","15","0","10","2","100","45","20","0"]],[0,["sub"]]]
+
+let [worldGeo,worldFn]=csgSolidBake(csgSolidBox(0,0,0,0,10,10,10,0,0,0,0))
+export let worldSourceList:[number,string[]][]=[[1,["box","0","10","20","30","10","10","10","0","0","0","10"]]]
 
 // ----------------------
 
-let skyboxGeo = csgSolidBake(csgSolidCube(0, 0,0,0, 1,1,1, 0,0,0))[0]
+let skyboxGeo = csgSolidBake(csgSolidBox(0, 0,0,0, 1,1,1, 0,0,0, 0))[0]
 let playerGeo = csgSolidBake(csgSolidSphere(2, 0,10,0, 10))[0]
 
 export let worldGetGeo = (): ModelGeo => worldGeo
@@ -48,7 +49,7 @@ export let evaluateNewWorld = (sourceList: [number,string[]][]): string => {
 }
 
 type WorldDefSolid =
-    ['box',   number, number,number,number, number,number,number, number,number,number ]
+    ['box',   number, number,number,number, number,number,number, number,number,number, number ]
   | ['ball', number, number,number,number, number ]
 type WorldDefOp = ['add'] | ['sub']
 type WorldDefItem = WorldDefSolid | WorldDefOp
@@ -60,7 +61,7 @@ let evaluateWorldDefSolid = (def: WorldDefSolid): [CsgSolid, string] => {
         `${name}(${def.slice(1).map((x: any) => parseInt(x))})`
     ]
     switch (def[0]) {
-        case 'box': return result('csgSolidCube', csgSolidCube)
+        case 'box': return result('csgSolidBox', csgSolidBox)
         case 'ball': return result('csgSolidSphere', csgSolidSphere)
         default: throw new Error()
     }

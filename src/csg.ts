@@ -1,6 +1,6 @@
 // Ported from https://github.com/evanw/csg.js
 import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, Mat4, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add } from "./types"
+import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, Mat4, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;
@@ -8,7 +8,6 @@ declare const EDITOR: boolean;
 const CSG_PLANE_EPSILON = 1e-5
 
 let v3Scratch: Vec3
-let m4Scratch: Mat4
 
 type CsgVertex = Readonly<{
     pos: Vec3,
@@ -248,59 +247,23 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
-export let csgSolidCube = (
+export let csgSolidBox = (
     tag: number,
     cx: number, cy: number, cz: number,
     rx: number, ry: number, rz: number,
-    yaw: number, pitch: number, roll: number
-): CsgSolid => ({
-    polys: [
-        [[0, 4, 6, 2], [-1, 0, 0]],
-        [[1, 3, 7, 5], [ 1, 0, 0]],
-        [[0, 1, 5, 4], [ 0,-1, 0]],
-        [[2, 6, 7, 3], [ 0, 1, 0]],
-        [[0, 2, 3, 1], [ 0, 0,-1]],
-        [[4, 5, 7, 6], [ 0, 0, 1]]
-    ].map(info => csgPolygonNew(
-        info[0].map(i => (
-            m4Scratch = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI)),
-            v3Scratch = [
-                rx * (2 * (!!(i & 1) as any) - 1),
-                ry * (2 * (!!(i & 2) as any) - 1),
-                rz * (2 * (!!(i & 4) as any) - 1)
-            ],
-            {
-                pos: v3Add([cx,cy,cz], m4MulPoint(m4Scratch, v3Scratch)),
-                normal: m4MulPoint(m4Scratch, info[1] as any as Vec3),
-                uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
-                    : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
-                    : [v3Scratch[0],v3Scratch[1]]
-            }
-        )),
-        tag
-    )),
-    sdf: `${F_CUBE}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}],${yaw},${pitch},${roll})`
-})
-
-export let csgSolidSphere = (
-    tag: number,
-    cx: number, cy: number, cz: number,
-//  rx: number, ry: number, rz: number,
-//  yaw: number, pitch: number, roll: number,
+    yaw: number, pitch: number, roll: number,
     radius: number
 ): CsgSolid => {
     const resolution = 4
-
-    //const rx = 10, ry = 20, rz = 30
-    const rx = 0, ry = 0, rz = 0
 
     let vertices: CsgVertex[] = []
     let polys: CsgPolygon[] = []
     let normal: Vec3
     let uv: Vec2
+    let rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
 
     // theta: 0-4 longitude, phi: 0-2 latitude pole to pole
-    let vertex = (theta: number, phi: number) => (
+    let cornerVertex = (offset: Vec3, theta: number, phi: number) => (
         uv = [4*theta * (radius|0), 4*phi*(radius|0)],
         theta *= Math.PI/2,
         phi *= Math.PI/2,
@@ -310,40 +273,84 @@ export let csgSolidSphere = (
             Math.sin(theta) * Math.sin(phi),
         ],
         vertices.push({
-            pos: v3AddScale(v3Add(v3Scratch,[cx,cy,cz]), normal, radius),
-            normal,
+            pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3AddScale(v3Mul(offset, [-rx,-ry,-rz]), normal, radius))),
+            normal: m4MulPoint(rot, normal),
             uv,
         })
     )
 
-    for (let k = 0; k < 8; ++k) { // corners
+    // corners
+    for (let k = 0; k < 8; ++k) {
         for (let i = 0; i < resolution; ++i) { // longitudes
             for (let j = 0; j < resolution; ++j) { // latitudes
                 let i0 = i/resolution +  k%4,    i1 = (i+1)/resolution +  k%4
                 let j0 = j/resolution + (k/4|0), j1 = (j+1)/resolution + (k/4|0)
 
-                v3Scratch = [
-                    -rx * (2 * (!!(k & 1) as any ^ !!(k & 2) as any) - 1),
-                    -ry * (2 * (!!(k & 4) as any) - 1),
-                    -rz * (2 * (!!(k & 2) as any) - 1),
+                let offset: Vec3 = [
+                    (2 * (!!(k & 1) as any ^ !!(k & 2) as any) - 1),
+                    (2 * (!!(k & 4) as any) - 1),
+                    (2 * (!!(k & 2) as any) - 1),
                 ]
 
                 vertices = []
-                vertex(i0, j0)
-                j0 > 0.01 && vertex(i1, j0)
-                j1 < 1.99 && vertex(i1, j1)
-                vertex(i0, j1)
-
+                cornerVertex(offset, i0, j0)
+                j0 > 0.01 && cornerVertex(offset, i1, j0)
+                j1 < 1.99 && cornerVertex(offset, i1, j1)
+                cornerVertex(offset, i0, j1)
                 polys.push(csgPolygonNew(vertices, tag))
             }
         }
     }
+
+    // edges
+    for (let j = 0; j < resolution; ++j) { // latitudes
+        let j0 = j/resolution, j1 = (j+1)/resolution
+
+        let offset0: Vec3 = [ 1, 1,-1];
+        let offset1: Vec3 = [ 1, 1, 1];
+
+        vertices = []
+        cornerVertex(offset0, 2, j0+1)
+        cornerVertex(offset1, 2, j0+1)
+        cornerVertex(offset1, 2, j1+1)
+        cornerVertex(offset0, 2, j1+1)
+        polys.push(csgPolygonNew(vertices, tag))
+    }
+
+    // faces
+    [
+        [[0, 4, 6, 2], [-1, 0, 0]],
+        [[1, 3, 7, 5], [ 1, 0, 0]],
+        [[0, 1, 5, 4], [ 0,-1, 0]],
+        [[2, 6, 7, 3], [ 0, 1, 0]],
+        [[0, 2, 3, 1], [ 0, 0,-1]],
+        [[4, 5, 7, 6], [ 0, 0, 1]]
+    ].map(info => polys.push(csgPolygonNew(
+        info[0].map(i => (
+            v3Scratch = v3AddScale([
+                rx * (2 * (!!(i & 1) as any) - 1),
+                ry * (2 * (!!(i & 2) as any) - 1),
+                rz * (2 * (!!(i & 4) as any) - 1)
+            ], info[1] as any as Vec3, radius),
+            {
+                pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3Scratch)),
+                normal: m4MulPoint(rot, info[1] as any as Vec3),
+                uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
+                    : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
+                    : [v3Scratch[0],v3Scratch[1]]
+            }
+        )),
+        tag
+    )))
 
     return {
         polys,
         sdf: `${F_SPHERE}(${V_POSITION},[${cx},${cy},${cz}],${radius})`
     }
 }
+
+export let csgSolidSphere = (tag: number, cx: number, cy: number, cz: number, radius: number): CsgSolid =>
+    csgSolidBox(tag, cx, cy, cz, 0, 0, 0, 0, 0, 0, radius)
 
 let sdfCube = (p: Vec3, center: Vec3, radius: Vec3, yaw: number, pitch: number, roll: number): number => (
     v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), radius),
