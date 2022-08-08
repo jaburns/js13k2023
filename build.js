@@ -154,7 +154,8 @@ const main = () => {
         x = x.substring(0, x.length - 1)
     }
 
-    x = "(()=>{let G=CC.getContext('webgl',{antialias:!1});" + x + "})()"
+    //x = "(()=>{let G=CC.getContext('webgl',{antialias:!1});" + x + "})()"
+    x = "(()=>{let G=CC.getContext('webgl');" + x + "})()"
     let noRr = x
 
     if (!DEBUG) {
@@ -163,8 +164,10 @@ const main = () => {
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')
     }
 
-    fs.writeFileSync('build/index.html', `<canvas id=CC style=image-rendering:pixelated><script>${x}</script>`)
-    fs.writeFileSync('build/index_no_rr.html', `<canvas id=CC style=image-rendering:pixelated><script>${noRr}</script>`)
+    //fs.writeFileSync('build/index.html', `<canvas id=CC style=image-rendering:pixelated><script>${x}</script>`)
+    //fs.writeFileSync('build/index_no_rr.html', `<canvas id=CC style=image-rendering:pixelated><script>${noRr}</script>`)
+    fs.writeFileSync('build/index.html', `<canvas id=CC><script>${x}</script>`)
+    fs.writeFileSync('build/index_no_rr.html', `<canvas id=CC><script>${noRr}</script>`)
 
     if (!DEBUG) {
         run(advzipPath + ' --shrink-insane -i 10 -a out.zip build/index.html')

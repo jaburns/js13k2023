@@ -283,27 +283,58 @@ export let csgSolidLine = (
 
     let d = r0 - r1
     let phi = Math.atan(d / h)
-    let cos = Math.cos(phi)
-    let sin = Math.sin(phi)
+    let phiLat = 2*phi / Math.PI
 
-    let offsetY0 = cy + r0 * sin
-    let walkR0 = r0 * cos
+    let offsetY0 = cy + r0 * Math.sin(phi)
+    let walkR0 = r0 * Math.cos(phi)
 
-    let offsetY1 = cy + h + r1 * sin
-    let walkR1 = r1 * cos
+    let offsetY1 = cy + h + r1 * Math.sin(phi)
+    let walkR1 = r1 * Math.cos(phi)
 
-    // cone runs from radius walkR0 at offsetY0 to radius walkR1 at offsetY1
-    for (let y = 0; y < 10; ++y) {
-        for (let i0 = 0; i0 < 16; ++i0) {
-            let i1 = i0+1, y1 = y + 1
+    for (let i = 0; i < 4*resolution; ++i) { // longitudes
+        let i0 = i/resolution, i1 = (i+1)/resolution
+
+        accVertices = []
+        sphereVertex(walkR0, [0,offsetY0, 0], i0, 1)
+        sphereVertex(walkR1, [0,offsetY1, 0], i0, 1)
+        sphereVertex(walkR1, [0,offsetY1, 0], i1, 1)
+        sphereVertex(walkR0, [0,offsetY0, 0], i1, 1)
+        polys.push(csgPolygonNew(accVertices, tag))
+
+        // top latitudes
+        for (let j = 0; j < 2*resolution; ++j) {
+            let j0 = j/resolution, j1 = (j+1)/resolution
+            let brk = j1 > 1 - phiLat
+            if (brk) j1 = 1 - phiLat
+
             accVertices = []
-            sphereVertex((walkR1-walkR0)*(y/10)+walkR0,  [0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i0/16, 1)
-            sphereVertex((walkR1-walkR0)*(y1/10)+walkR0, [0,(y1/10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i0/16, 1)
-            sphereVertex((walkR1-walkR0)*(y1/10)+walkR0, [0,(y1/10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i1/16, 1)
-            sphereVertex((walkR1-walkR0)*(y/10)+walkR0,  [0,(y /10)*(offsetY1-offsetY0)+offsetY0, 0], 4*i1/16, 1)
+            sphereVertex(r1, [0,h,0], i0, j0)
+            j0 > 0.01 && sphereVertex(r1, [0,h,0], i1, j0)
+            sphereVertex(r1, [0,h,0], i1, j1)
+            sphereVertex(r1, [0,h,0], i0, j1)
             polys.push(csgPolygonNew(accVertices, tag))
+
+            if (brk) break;
+        }
+
+        // bottom latitudes
+        for (let j = 2*resolution; j > 0; --j) {
+            let j0 = (j-1)/resolution, j1 = j/resolution
+            let brk = j0 < 1 - phiLat
+            if (brk) j0 = 1 - phiLat
+
+            accVertices = []
+            sphereVertex(r0, [0,0,0], i0, j0)
+            sphereVertex(r0, [0,0,0], i1, j0)
+            j1<1.99 && sphereVertex(r0, [0,0,0], i1, j1)
+            sphereVertex(r0, [0,0,0], i0, j1)
+            polys.push(csgPolygonNew(accVertices, tag))
+
+            if (brk) break;
         }
     }
+
+    console.log('phi', phi)
 
     return {
         polys,

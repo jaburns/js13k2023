@@ -1,6 +1,6 @@
 {
     "k_tickMillis": 33,
-    "k_pixelSize": 2,
+    "k_pixelSize": 1,
     "k_texSize": 32,
     "k_numTextures": 3,
     "k_mouseSensitivity": 0.005
