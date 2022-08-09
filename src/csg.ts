@@ -1,5 +1,5 @@
 // Ported from https://github.com/evanw/csg.js
-import { gl_ARRAY_BUFFER, gl_ELEMENT_ARRAY_BUFFER, gl_STATIC_DRAW } from "./glConsts"
+import * as gl from './glConsts'
 import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul, Mat4 } from "./types"
 
 declare const G: WebGLRenderingContext;
@@ -195,6 +195,7 @@ let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
 
 const V_POSITION  = 'a'
 const F_BOX       = 'b'
+const F_LINE      = 'c'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
@@ -285,10 +286,10 @@ export let csgSolidLine = (
     let phi = Math.atan(d / h)
     let phiLat = 2*phi / Math.PI
 
-    let offsetY0 = cy + r0 * Math.sin(phi)
+    let offsetY0 = r0 * Math.sin(phi)
     let walkR0 = r0 * Math.cos(phi)
 
-    let offsetY1 = cy + h + r1 * Math.sin(phi)
+    let offsetY1 = h + r1 * Math.sin(phi)
     let walkR1 = r1 * Math.cos(phi)
 
     for (let i = 0; i < 4*resolution; ++i) { // longitudes
@@ -334,11 +335,9 @@ export let csgSolidLine = (
         }
     }
 
-    console.log('phi', phi)
-
     return {
         polys,
-        sdf: `10000`
+        sdf: `${F_LINE}(${V_POSITION},[${cx},${cy},${cz}],${h},${r0},${r1},${yaw},${pitch},${roll})`,
     }
 }
 
@@ -444,10 +443,32 @@ export let csgSolidBox = (
     }
 }
 
-let sdfBox = (p: Vec3, center: Vec3, extents: Vec3, yaw: number, pitch: number, roll: number, radius: number): number => (
+let sdfBox = (
+    p: Vec3, center: Vec3,
+    extents: Vec3,
+    yaw: number, pitch: number, roll: number,
+    radius: number
+): number => (
     v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), extents),
     v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0) - radius
 )
+
+let sdfLine = (
+    p: Vec3, center: Vec3,
+    h: number, r0: number, r1: number,
+    yaw: number, pitch: number, roll: number
+): number => {
+    v3Scratch = m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))
+
+    let b = (r0-r1)/h
+    let a = Math.sqrt(1.0-b*b)
+    let q: Vec3 = [v3Length([v3Scratch[0],v3Scratch[2],0]),v3Scratch[1],0]
+    let k = v3Dot(q,[-b,a,0])
+
+    return k<0.0 ? v3Length(q) - r0 :
+        k>a*h ? v3Length(v3Sub(q,[0,h,0])) - r1 :
+        v3Dot(q, [a,b,0]) - r0
+}
 
 export type SdfFunction = (pos: Vec3) => number
 
@@ -479,11 +500,11 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let linesTagBuf: number[] = []
 
     let innerSdfFunc = new Function(
-        `${V_POSITION},${F_BOX}`,
+        `${V_POSITION},${F_BOX},${F_LINE}`,
         'return ' + self.sdf
     )
     let sdfFunc = (x: Vec3): number => innerSdfFunc(
-        x, sdfBox
+        x, sdfBox, sdfLine
     )
 
     self.polys.map(poly => {
@@ -499,7 +520,8 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     })
 
     if (EDITOR) {
-        (self.lineViewPolys || self.polys).map(poly => {
+        let showPolys = (window as any).editorShowLinesKind ? self.polys : (self.lineViewPolys || self.polys)
+        showPolys.map(poly => {
             let startIdx = linesVertexBuf.length / 3
             poly.vertices.map(x => (
                 linesVertexBuf.push(...x.pos),
@@ -514,36 +536,36 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     }
 
     let index = G.createBuffer()!
-    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, index)
-    G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(indexBuf), gl_STATIC_DRAW)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index)
+    G.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indexBuf), gl.STATIC_DRAW)
 
     let vertex = G.createBuffer()!
-    G.bindBuffer(gl_ARRAY_BUFFER, vertex)
-    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(vertexBuf), gl_STATIC_DRAW)
+    G.bindBuffer(gl.ARRAY_BUFFER, vertex)
+    G.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexBuf), gl.STATIC_DRAW)
 
     let normal = G.createBuffer()!
-    G.bindBuffer(gl_ARRAY_BUFFER, normal)
-    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(normalBuf), gl_STATIC_DRAW)
+    G.bindBuffer(gl.ARRAY_BUFFER, normal)
+    G.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalBuf), gl.STATIC_DRAW)
 
     let uv = G.createBuffer()!
-    G.bindBuffer(gl_ARRAY_BUFFER, uv)
-    G.bufferData(gl_ARRAY_BUFFER, new Float32Array(uvTagBuf), gl_STATIC_DRAW)
+    G.bindBuffer(gl.ARRAY_BUFFER, uv)
+    G.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvTagBuf), gl.STATIC_DRAW)
 
     let linesIndex: WebGLBuffer
     let linesVertex: WebGLBuffer
     let linesTag: WebGLBuffer
     if (EDITOR) {
         linesIndex = G.createBuffer()!
-        G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, linesIndex)
-        G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array(linesIndexBuf), gl_STATIC_DRAW)
+        G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, linesIndex)
+        G.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(linesIndexBuf), gl.STATIC_DRAW)
 
         linesVertex = G.createBuffer()!
-        G.bindBuffer(gl_ARRAY_BUFFER, linesVertex)
-        G.bufferData(gl_ARRAY_BUFFER, new Float32Array(linesVertexBuf), gl_STATIC_DRAW)
+        G.bindBuffer(gl.ARRAY_BUFFER, linesVertex)
+        G.bufferData(gl.ARRAY_BUFFER, new Float32Array(linesVertexBuf), gl.STATIC_DRAW)
 
         linesTag = G.createBuffer()!
-        G.bindBuffer(gl_ARRAY_BUFFER, linesTag)
-        G.bufferData(gl_ARRAY_BUFFER, new Float32Array(linesTagBuf), gl_STATIC_DRAW)
+        G.bindBuffer(gl.ARRAY_BUFFER, linesTag)
+        G.bufferData(gl.ARRAY_BUFFER, new Float32Array(linesTagBuf), gl.STATIC_DRAW)
     }
 
     return [

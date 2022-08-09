@@ -1,5 +1,5 @@
 import { csgSolidBake, csgSolidBox, ModelGeo } from "./csg"
-import { gl_ARRAY_BUFFER, gl_COLOR_BUFFER_BIT, gl_CULL_FACE, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_LINES, gl_STATIC_DRAW, gl_TEXTURE0, gl_TEXTURE_2D, gl_UNSIGNED_SHORT } from "./glConsts"
+import * as gl from './glConsts'
 import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag, debugRay_vert, debugRay_frag } from "./shaders.gen"
@@ -200,6 +200,10 @@ let update = (dt: number, inputs: InputsFrame): void => {
             rebuildScene()
         }
     }
+    if (inputs.keysDown['I'] && !lastInputs.keysDown['I']) {
+        (window as any).editorShowLinesKind = !(window as any).editorShowLinesKind
+        rebuildScene()
+    }
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(yaw), m4RotX(-pitch)), [0,0,-1])
     let strafeVec = m4MulPoint(m4RotY(yaw+Math.PI/2), [0,0,-1])
@@ -250,14 +254,14 @@ let render = (): void => {
     ivp = m4IInvert(vp)
 
     G.clearColor(0,0,0,1)
-    G.clear(gl_COLOR_BUFFER_BIT)
-    //G.enable(gl_CULL_FACE)
+    G.clear(gl.COLOR_BUFFER_BIT)
+    //G.enable(gl.CULL_FACE)
 
     G.useProgram(mainShader)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, vp)
     G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl_TEXTURE0 + i),
-        G.bindTexture(gl_TEXTURE_2D, tex),
+        G.activeTexture(gl.TEXTURE0 + i),
+        G.bindTexture(gl.TEXTURE_2D, tex),
         i
     )))
     modelGeoDraw(worldGetGeo(), mainShader)
@@ -265,7 +269,7 @@ let render = (): void => {
     pickedIndex = -1
 
     if (showHandles) {
-        G.disable(gl_DEPTH_TEST)
+        G.disable(gl.DEPTH_TEST)
 
         G.useProgram(debugGeoShader)
         for (let i = 0; i < sourceList.length; ++i) {
@@ -285,7 +289,7 @@ let render = (): void => {
 
             modelGeoDraw(handleGeo, debugGeoShader)
         }
-        G.enable(gl_DEPTH_TEST)
+        G.enable(gl.DEPTH_TEST)
     }
 
     if (showLines) {
@@ -294,50 +298,50 @@ let render = (): void => {
         modelGeoDrawLines(worldGetGeo(), debugLinesShader)
     }
 
-    G.disable(gl_DEPTH_TEST)
+    G.disable(gl.DEPTH_TEST)
     G.useProgram(debugRayShader)
     drawRay(vp,[-1000,0,0],[1000,0,0],[1,0,0])
     drawRay(vp,[0,-1000,0],[0,1000,0],[0,1,0])
     drawRay(vp,[0,0,-1000],[0,0,1000],[0,.5,1])
-    G.enable(gl_DEPTH_TEST)
+    G.enable(gl.DEPTH_TEST)
 }
 
 let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
-    G.bindBuffer(gl_ARRAY_BUFFER, self.lines!.vertexBuffer)
+    G.bindBuffer(gl.ARRAY_BUFFER, self.lines!.vertexBuffer)
     let posLoc = G.getAttribLocation(shaderProg, 'a_position')
     G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+    G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl_ARRAY_BUFFER, self.lines!.tagBuffer)
+    G.bindBuffer(gl.ARRAY_BUFFER, self.lines!.tagBuffer)
     posLoc = G.getAttribLocation(shaderProg, 'a_tag')
     G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 1, gl_FLOAT, false, 0, 0)
+    G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.lines!.indexBuffer)
-    G.drawElements(gl_LINES, self.lines!.indexBufferLen, gl_UNSIGNED_SHORT, 0)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.lines!.indexBuffer)
+    G.drawElements(gl.LINES, self.lines!.indexBufferLen, gl.UNSIGNED_SHORT, 0)
 }
 
 let drawRayIndex: WebGLBuffer;
 let drawRayVertex: WebGLBuffer;
 let drawRayInit = (): void => {
     drawRayIndex = G.createBuffer()!
-    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, drawRayIndex)
-    G.bufferData(gl_ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1]), gl_STATIC_DRAW)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
+    G.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1]), gl.STATIC_DRAW)
     drawRayVertex = G.createBuffer()!
-    G.bindBuffer(gl_ARRAY_BUFFER, drawRayVertex)
-    G.bufferData(gl_ARRAY_BUFFER, new Float32Array([0,1]), gl_STATIC_DRAW)
+    G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
+    G.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1]), gl.STATIC_DRAW)
 }
 let drawRay = (vp: Mat4, a: Vec3, b: Vec3, color: Vec3): void => {
     G.uniform3fv(G.getUniformLocation(debugRayShader, 'u_color'), color)
     G.uniform3fv(G.getUniformLocation(debugRayShader, 'u_pos0'), a)
     G.uniform3fv(G.getUniformLocation(debugRayShader, 'u_pos1'), b)
     G.uniformMatrix4fv(G.getUniformLocation(debugRayShader, 'u_mvp'), false, vp)
-    G.bindBuffer(gl_ARRAY_BUFFER, drawRayVertex)
+    G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
     let posLoc = G.getAttribLocation(debugRayShader, 'a_index')
     G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 1, gl_FLOAT, false, 0, 0)
-    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, drawRayIndex)
-    G.drawElements(gl_LINES, 2, gl_UNSIGNED_SHORT, 0)
+    G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
+    G.drawElements(gl.LINES, 2, gl.UNSIGNED_SHORT, 0)
 }
 
 let m4MulVec4 = (m: Mat4, [x,y,z,w]: [number,number,number,number]): Vec3 => {

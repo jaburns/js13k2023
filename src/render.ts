@@ -1,8 +1,4 @@
-import {
-    gl_ARRAY_BUFFER, gl_CULL_FACE, gl_DEPTH_TEST, gl_ELEMENT_ARRAY_BUFFER, gl_FLOAT, gl_FRAGMENT_SHADER, gl_LEQUAL,
-    gl_NEAREST, gl_REPEAT, gl_RGBA, gl_TEXTURE0, gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_TEXTURE_MIN_FILTER,
-    gl_TEXTURE_WRAP_S, gl_TEXTURE_WRAP_T, gl_TRIANGLES, gl_UNSIGNED_BYTE, gl_UNSIGNED_SHORT, gl_VERTEX_SHADER
-} from "./glConsts"
+import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
 import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Sub } from "./types"
@@ -17,23 +13,23 @@ declare const k_mouseSensitivity: number
 
 export let textures: WebGLTexture[] = tttTextures.map(canvas => {
     let tex = G.createTexture()!
-    G.bindTexture(gl_TEXTURE_2D, tex)
-    G.texImage2D(gl_TEXTURE_2D, 0, gl_RGBA, gl_RGBA, gl_UNSIGNED_BYTE, canvas)
-    G.generateMipmap(gl_TEXTURE_2D)
-    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_MIN_FILTER, gl_NEAREST) // gl_LINEAR)
-    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_MAG_FILTER, gl_NEAREST) // gl_LINEAR)
-    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_WRAP_S, gl_REPEAT)
-    G.texParameteri(gl_TEXTURE_2D, gl_TEXTURE_WRAP_T, gl_REPEAT)
+    G.bindTexture(gl.TEXTURE_2D, tex)
+    G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas)
+    G.generateMipmap(gl.TEXTURE_2D)
+    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST) // gl.LINEAR)
+    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST) // gl.LINEAR)
+    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
+    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
     document.body.appendChild(canvas)
     return tex
 })
 
-G.enable(gl_DEPTH_TEST)
-G.depthFunc(gl_LEQUAL)
+G.enable(gl.DEPTH_TEST)
+G.depthFunc(gl.LEQUAL)
 
 export let shaderCompile = (vert: string, frag: string): WebGLProgram => {
-    let vs = G.createShader(gl_VERTEX_SHADER)!
-    let fs = G.createShader(gl_FRAGMENT_SHADER)!
+    let vs = G.createShader(gl.VERTEX_SHADER)!
+    let fs = G.createShader(gl.FRAGMENT_SHADER)!
     let shader = G.createProgram()!
 
     G.shaderSource(vs, vert)
@@ -61,25 +57,25 @@ let mainShader = shaderCompile(main_vert, main_frag)
 let skyShader = shaderCompile(sky_vert, sky_frag)
 
 export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
-    G.bindBuffer(gl_ARRAY_BUFFER, self.vertexBuffer)
+    G.bindBuffer(gl.ARRAY_BUFFER, self.vertexBuffer)
     let posLoc = G.getAttribLocation(shaderProg, 'a_position')
     G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+    G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl_ARRAY_BUFFER, self.normalBuffer)
+    G.bindBuffer(gl.ARRAY_BUFFER, self.normalBuffer)
     posLoc = G.getAttribLocation(shaderProg, 'a_normal')
     if (posLoc >= 0) {
         G.enableVertexAttribArray(posLoc)
-        G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+        G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-        G.bindBuffer(gl_ARRAY_BUFFER, self.uvTagBuffer)
+        G.bindBuffer(gl.ARRAY_BUFFER, self.uvTagBuffer)
         posLoc = G.getAttribLocation(shaderProg, 'a_uvTag')
         G.enableVertexAttribArray(posLoc)
-        G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
+        G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
     }
 
-    G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, self.indexBuffer)
-    G.drawElements(gl_TRIANGLES, self.indexBufferLen, gl_UNSIGNED_SHORT, 0)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.indexBuffer)
+    G.drawElements(gl.TRIANGLES, self.indexBufferLen, gl.UNSIGNED_SHORT, 0)
 }
 
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState): void => {
@@ -93,7 +89,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let projectionMat = m4Perspective(
         CC.height / CC.width,
         0.1,
-        1000
+        10000
     )
     let modelMat = m4Translate(state.pos)
     let mvp: Mat4
@@ -103,8 +99,8 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.useProgram(mainShader)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
     G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl_TEXTURE0 + i),
-        G.bindTexture(gl_TEXTURE_2D, tex),
+        G.activeTexture(gl.TEXTURE0 + i),
+        G.bindTexture(gl.TEXTURE_2D, tex),
         i
     )))
     modelGeoDraw(worldGetPlayer(), mainShader)
@@ -114,28 +110,28 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.useProgram(mainShader)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, mvp)
     G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl_TEXTURE0 + i),
-        G.bindTexture(gl_TEXTURE_2D, tex),
+        G.activeTexture(gl.TEXTURE0 + i),
+        G.bindTexture(gl.TEXTURE_2D, tex),
         i
     )))
     modelGeoDraw(worldGetGeo(), mainShader)
 
     // Skybox
-    G.disable(gl_CULL_FACE)
+    G.disable(gl.CULL_FACE)
     G.useProgram(skyShader)
     G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
     modelGeoDraw(worldGetSky(), skyShader)
-    G.enable(gl_CULL_FACE)
+    G.enable(gl.CULL_FACE)
 
     //let sky = worldGetSky()
-    //G.disable(gl_CULL_FACE)
+    //G.disable(gl.CULL_FACE)
     //G.useProgram(skyShader)
     //G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
-    //G.bindBuffer(gl_ARRAY_BUFFER, worldGetSky().vertexBuffer)
+    //G.bindBuffer(gl.ARRAY_BUFFER, worldGetSky().vertexBuffer)
     //let posLoc = G.getAttribLocation(skyShader, 'a_position')
     //G.enableVertexAttribArray(posLoc)
-    //G.vertexAttribPointer(posLoc, 3, gl_FLOAT, false, 0, 0)
-    //G.bindBuffer(gl_ELEMENT_ARRAY_BUFFER, sky.indexBuffer)
-    //G.drawElements(gl_TRIANGLES, sky.indexBufferLen, gl_UNSIGNED_SHORT, 0)
-    //G.enable(gl_CULL_FACE)
+    //G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
+    //G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sky.indexBuffer)
+    //G.drawElements(gl.TRIANGLES, sky.indexBufferLen, gl.UNSIGNED_SHORT, 0)
+    //G.enable(gl.CULL_FACE)
 }
