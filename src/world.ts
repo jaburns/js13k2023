@@ -9,8 +9,8 @@ export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1000","0","1
 
 // ----------------------
 
-let skyboxGeo = csgSolidBake(csgSolidBox(0,  0,0,0, 1,1,1, 0,0,0,  0))[0]
-let playerGeo = csgSolidBake(csgSolidBox(2, 0,10,0, 0,0,0, 0,0,0, 10))[0]
+let skyboxGeo = csgSolidBake(csgSolidBox(0, 0,0,0, 1,1,1, 0,0,0,  0))[0]
+let playerGeo = csgSolidBake(csgSolidBox(2, 0,0,0, 0,0,0, 0,0,0, 10))[0]
 
 export let worldGetGeo = (): ModelGeo => worldGeo
 export let worldGetSky = (): ModelGeo => skyboxGeo
@@ -32,6 +32,16 @@ export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, 
             return [marchPoint, worldSampleNormal(marchPoint)]
         }
         marchPoint = v3AddScale(marchPoint, normalizedDir, dist)
+    }
+    return Null
+}
+
+export let worldNearestSurfacePoint = (pos: Vec3): Vec3 | Null => {
+    for (let i = 0, marchPoint = pos, dist; i < 50; ++i) {
+        if ((dist = worldFn(marchPoint)) < eps) {
+            return marchPoint
+        }
+        marchPoint = v3AddScale(marchPoint, worldSampleNormal(marchPoint), -dist)
     }
     return Null
 }

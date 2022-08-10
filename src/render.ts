@@ -1,8 +1,8 @@
 import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Sub } from "./types"
-import { worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Sub, Vec3 } from "./types"
+import { worldGetGeo, worldGetPlayer, worldGetSky, worldNearestSurfacePoint } from "./world"
 import { tttTextures } from "./textures"
 import { ModelGeo } from "./csg"
 
