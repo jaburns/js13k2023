@@ -29,9 +29,10 @@ export let v3Min = (a: Vec3, b: Vec3): Vec3 => a.map((x,i)=>Math.min(x,b[i])) as
 export let vecLerp = <T extends Vec2 | Vec3>(a: T, b: T, t: number): T => a.map((x,i)=>lerp(x,b[i],t)) as any as T
 
 export let v3Dot = ([x,y,z]: Vec3, [a,b,c]: Vec3): number => x*a + y*b + z*c
+export let v3Dot2 = (a: Vec3): number => v3Dot(a, a)
 export let v3Cross = ([x,y,z]: Vec3, [a,b,c]: Vec3): Vec3 => [y*c - z*b, z*a - x*c, x*b - y*a]
 
-export let v3Length = (x: Vec3): number => Math.sqrt(v3Dot(x, x))
+export let v3Length = (x: Vec3): number => Math.sqrt(v3Dot2(x))
 export let v3Normalize = (a: Vec3): Vec3 => v3AddScale([0,0,0], a, 1/v3Length(a))
 
 export let v3Reflect = (v: Vec3, norm: Vec3, normScale: number, tanScale: number): Vec3 => {

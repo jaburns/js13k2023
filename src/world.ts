@@ -1,6 +1,6 @@
 import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidLine, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
-import { Null, v3Add, v3AddScale, v3Normalize, v3Sub, Vec3 } from "./types"
+import { Null, v3Add, v3AddScale, v3Dot2, v3Length, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
 
@@ -25,25 +25,28 @@ let worldSampleNormal = (pos: Vec3): Vec3 =>
         worldFn(v3Add(pos,[0,0,eps])) - worldFn(v3Sub(pos,[0,0,eps]))
     ])
 
-export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, Vec3] | Null => {
-    for (let i = 0, traveled = 0, marchPoint = pos, dist; i < 50 && traveled < len; ++i) {
-        traveled += (dist = worldFn(marchPoint))
-        if (dist < eps) {
-            return [marchPoint, worldSampleNormal(marchPoint)]
-        }
-        marchPoint = v3AddScale(marchPoint, normalizedDir, dist)
-    }
-    return Null
-}
+//export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, Vec3] | Null => {
+//    for (let i = 0, traveled = 0, marchPoint = pos, dist; i < 50 && traveled < len; ++i) {
+//        traveled += (dist = worldFn(marchPoint))
+//        if (dist < eps) {
+//            return [marchPoint, worldSampleNormal(marchPoint)]
+//        }
+//        marchPoint = v3AddScale(marchPoint, normalizedDir, dist)
+//    }
+//    return Null
+//}
 
-export let worldNearestSurfacePoint = (pos: Vec3): Vec3 | Null => {
-    for (let i = 0, marchPoint = pos, dist; i < 50; ++i) {
-        if ((dist = worldFn(marchPoint)) < eps) {
-            return marchPoint
+export let worldNearestSurfacePoint = (pos: Vec3): [Vec3, Vec3, number] | undefined => {
+    for (let i = 0, marchPoint = pos, dist, norm; i < 50; ++i) {
+        dist = worldFn(marchPoint)
+        norm = worldSampleNormal(marchPoint)
+        if (dist < eps) {
+            dist = v3Sub(pos, marchPoint)
+            return [marchPoint, v3Dot2(dist) < eps ? norm : v3Normalize(dist), v3Length(dist)]
         }
-        marchPoint = v3AddScale(marchPoint, worldSampleNormal(marchPoint), -dist)
+        marchPoint = v3AddScale(marchPoint, norm, -dist)
     }
-    return Null
+    return undefined
 }
 
 // ------------------------------------------------------------------------------------

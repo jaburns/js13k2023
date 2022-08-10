@@ -1,6 +1,6 @@
 import { InputsFrame } from "./inputs"
 import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, Null, v3Add, v3AddScale, v3Length, v3Mul, v3Normalize, v3Reflect, v3Sub, Vec3, vecLerp } from "./types"
-import {worldNearestSurfacePoint, worldRaycast} from "./world";
+import { worldNearestSurfacePoint } from "./world";
 
 declare const k_mouseSensitivity: number;
 
@@ -44,7 +44,6 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch_)), [0,0,-1])
     let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
     let moveVec: Vec3 = [0,0,0]
-    let nearest: Vec3 | Null
 
     if (inputs.keysDown['W']) {
         moveVec = v3AddScale(moveVec, lookVec, 0.1)
@@ -62,15 +61,10 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     state.vel = v3Add(state.vel, [0,-0.3,0])
     state.pos = v3Add(state.pos, state.vel)
 
-    if (nearest = worldNearestSurfacePoint(state.pos)) {
-        let vec = v3Sub(state.pos, nearest)
-        let len = v3Length(vec)
-        console.log(len)
-        if (len < 10 && len != 0) {
-            let norm = v3Normalize(vec)
-            state.pos = v3AddScale(nearest, norm, 10)
-            state.vel = v3Reflect(state.vel, norm, 0, 1)
-        }
+    let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
+    if (nearDist < 10) {
+        state.pos = v3AddScale(nearPos, nearNorm, 10)
+        state.vel = v3Reflect(state.vel, nearNorm, 0, 1)
     }
 
     return state
