@@ -30,17 +30,16 @@ let accTime = 0
 let prevNow = 0
 let accTickInputs = inputsNew()
 
-let frame = () => {
+let frame = (now: number) => {
     requestAnimationFrame(frame)
+    prevNow = prevNow || now
 
-    let newNow = performance.now()
-    if (!prevNow) prevNow = newNow
-    let dt = Math.min(newNow - prevNow, 1000)
+    let dt = Math.min(now - prevNow, 1000)
     let frameInputs = inputsConsumeFrame()
     let didRunTick = False
 
     accTime += dt
-    prevNow = newNow
+    prevNow = now
 
     inputsAdd(accTickInputs, frameInputs)
 
@@ -75,4 +74,4 @@ if (EDITOR) {
 window.onresize = resize
 
 resize()
-frame()
+frame(0)

@@ -1,5 +1,5 @@
 import { InputsFrame } from "./inputs"
-import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, Null, v3Add, v3AddScale, v3Length, v3Mul, v3Normalize, v3Reflect, v3Sub, Vec3, vecLerp } from "./types"
+import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, v3Add, v3AddScale, v3Reflect, Vec3, vecLerp } from "./types"
 import { worldNearestSurfacePoint } from "./world";
 
 declare const k_mouseSensitivity: number;
@@ -46,16 +46,16 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     let moveVec: Vec3 = [0,0,0]
 
     if (inputs.keysDown['W']) {
-        moveVec = v3AddScale(moveVec, lookVec, 0.1)
+        moveVec = v3AddScale(moveVec, lookVec, 0.5)
     }
     if (inputs.keysDown['S']) {
-        moveVec = v3AddScale(moveVec, lookVec, -0.1)
+        moveVec = v3AddScale(moveVec, lookVec, -0.5)
     }
     if (inputs.keysDown['D']) {
-        moveVec = v3AddScale(moveVec, strafeVec, 0.1)
+        moveVec = v3AddScale(moveVec, strafeVec, 0.5)
     }
     if (inputs.keysDown['A']) {
-        moveVec = v3AddScale(moveVec, strafeVec, -0.1)
+        moveVec = v3AddScale(moveVec, strafeVec, -0.5)
     }
     state.vel = v3Add(state.vel, moveVec)
     state.vel = v3Add(state.vel, [0,-0.3,0])
