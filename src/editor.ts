@@ -248,7 +248,7 @@ let render = (): void => {
     let projectionMat = m4Perspective(
         CC.height / CC.width,
         0.1,
-        1000
+        10000
     )
     let vp = m4Mul(projectionMat, viewMat)
     ivp = m4IInvert(vp)
