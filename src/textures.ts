@@ -1,8 +1,51 @@
-declare const TTT_JS: any;
-declare const T: (data: number[][]) => HTMLCanvasElement[];
+declare const k_packedTexWidth: number
+declare const k_texCubeWidth: number
+declare const DEBUG: boolean
 
-TTT_JS;
+let genGrass = (): Uint8Array => {
+    let ret = new Uint8Array(k_packedTexWidth * k_packedTexWidth * 4)
 
-export let tttTextures = T(
-[[0,1823,2,3844,1,1,2,25878,2,1,2,2,4,1],[0,16911,2,17167,1,3,1,1,1,14,6,16,16,29448,16920,29471,1,-7,9,14,6,16,16,29448,16920,29471,2,37893,2,1,2,2,4,1],[15,17231,5,56564,10,2,26212,1,1,2,2,4,1]]
-)
+    for (let x = 0; x < k_texCubeWidth; ++x) {
+        for (let y = 0; y < k_texCubeWidth; ++y) {
+            for (let z = 0; z < k_texCubeWidth; ++z) {
+                let tx = z % 8;
+                let ty = Math.floor(z / 8);
+                let idx = x + k_texCubeWidth * tx + k_packedTexWidth * (y + k_texCubeWidth * ty)
+                idx *= 4
+                ret[idx] = Math.floor((x / 64) * 256)
+                ret[idx+1] = Math.floor((y / 64) * 256)
+                ret[idx+2] = Math.floor((z / 64) * 256)
+                if (DEBUG) ret[idx+3] = 255
+            }
+        }
+    }
+
+    if (DEBUG) {
+        const canvas = document.createElement('canvas');
+        canvas.width = k_packedTexWidth;
+        canvas.height = k_packedTexWidth;
+        const ctx = canvas.getContext('2d')!;
+        const imageData = ctx.createImageData(k_packedTexWidth, k_packedTexWidth);
+        for (let i = 0; i < ret.length; i++) {
+            imageData.data[i] = ret[i];
+        }
+        ctx.putImageData(imageData, 0, 0);
+        document.body.appendChild(canvas);
+    }
+
+    return ret
+}
+
+export let generatedTextures: Uint8Array[] = [
+    genGrass(),
+    genGrass(),
+    genGrass(),
+]
+
+
+/**
+ * Create and append a canvas with pixel data from a Uint8Array.
+ * @param {Uint8Array} data - The pixel data in RGBA format.
+ * @param {number} width - The width of the image in pixels.
+ * @param {number} height - The height of the image in pixels.
+ */

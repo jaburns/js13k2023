@@ -1,26 +1,26 @@
 import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert } from "./shaders.gen"
 import { GameState } from "./state"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Sub, Vec3 } from "./types"
-import { worldGetGeo, worldGetPlayer, worldGetSky, worldNearestSurfacePoint } from "./world"
-import { tttTextures } from "./textures"
+import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3Sub } from "./types"
+import { worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
+import { generatedTextures } from "./textures"
 import { ModelGeo } from "./csg"
 
 declare const DEBUG: boolean
 declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
 declare const k_mouseSensitivity: number
+declare const k_packedTexWidth: number
 
-export let textures: WebGLTexture[] = tttTextures.map(canvas => {
+export let textures: WebGLTexture[] = generatedTextures.map(pixels => {
     let tex = G.createTexture()!
     G.bindTexture(gl.TEXTURE_2D, tex)
-    G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas)
+    G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, k_packedTexWidth, k_packedTexWidth, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
     G.generateMipmap(gl.TEXTURE_2D)
-    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST) // gl.LINEAR)
-    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST) // gl.LINEAR)
+    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
     G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
     G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-    document.body.appendChild(canvas)
     return tex
 })
 
@@ -68,10 +68,10 @@ export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
         G.enableVertexAttribArray(posLoc)
         G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-        G.bindBuffer(gl.ARRAY_BUFFER, self.uvTagBuffer)
-        posLoc = G.getAttribLocation(shaderProg, 'a_uvTag')
+        G.bindBuffer(gl.ARRAY_BUFFER, self.tagBuffer)
+        posLoc = G.getAttribLocation(shaderProg, 'a_tag')
         G.enableVertexAttribArray(posLoc)
-        G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
+        G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
     }
 
     G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.indexBuffer)

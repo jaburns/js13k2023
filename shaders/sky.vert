@@ -1,6 +1,6 @@
 attribute vec3 a_position;
 attribute vec3 a_normal;
-attribute vec3 a_uvTag;
+attribute float a_tag;
 
 uniform mat4 u_mvp;
 

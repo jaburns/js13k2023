@@ -12,7 +12,6 @@ let v3Scratch: Vec3
 type CsgVertex = Readonly<{
     pos: Vec3,
     normal: Vec3,
-    uv: Vec2,
 }>
 
 type CsgPolygon = Readonly<{
@@ -89,7 +88,6 @@ let csgPlaneSplitPolygon = (
                 let v: CsgVertex = {
                     pos: vecLerp(vi.pos, vj.pos, t),
                     normal: v3Normalize(vecLerp(vi.normal, vj.normal, t)),
-                    uv: vecLerp(vi.uv, vj.uv, t),
                 }
                 f.push(v)
                 b.push(v)
@@ -118,7 +116,7 @@ let csgNodeNew = (): CsgNode => ({
 
 let csgNodeInvert = (self: CsgNode): void => {
     self.polygons = self.polygons.map(poly => ({
-        vertices: poly.vertices.map(v => ({ pos: v.pos, normal: v3Negate(v.normal), uv: v.uv })).reverse(),
+        vertices: poly.vertices.map(v => ({ pos: v.pos, normal: v3Negate(v.normal) })).reverse(),
         plane: csgPlaneFlip(poly.plane),
         tag: poly.tag,
     }))
@@ -256,7 +254,6 @@ let sphereVertexOffsetScale: Vec3
 let sphereVertex = (radius: number, offset: Vec3, theta: number, phi: number) => {
     theta *= Math.PI/2
     phi *= Math.PI/2
-    let uv: Vec2 = [4*theta * (radius|0), 4*phi*(radius|0)]
     let normal: Vec3 = [
         Math.cos(theta) * Math.sin(phi),
         Math.cos(phi),
@@ -265,7 +262,6 @@ let sphereVertex = (radius: number, offset: Vec3, theta: number, phi: number) =>
     accVertices.push({
         pos: v3Add(sphereVertexCenter, m4MulPoint(rot, v3AddScale(v3Mul(offset, sphereVertexOffsetScale), normal, radius))),
         normal: m4MulPoint(rot, normal),
-        uv,
     })
 }
 
@@ -428,9 +424,6 @@ export let csgSolidBox = (
                 {
                     pos: v3Add([cx,cy,cz], m4MulPoint(rot, v3Scratch)),
                     normal: m4MulPoint(rot, info[1] as any as Vec3),
-                    uv: info[1][0] ? [v3Scratch[2],v3Scratch[1]]
-                        : info[1][1] ? [v3Scratch[0],v3Scratch[2]]
-                        : [v3Scratch[0],v3Scratch[1]]
                 }
             )),
             tag
@@ -484,7 +477,7 @@ export type ModelGeo = {
     indexBufferLen: number,
     vertexBuffer: WebGLBuffer,
     normalBuffer: WebGLBuffer,
-    uvTagBuffer: WebGLBuffer
+    tagBuffer: WebGLBuffer
 
     lines?: ModelLines,
 }
@@ -492,7 +485,7 @@ export type ModelGeo = {
 export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     let vertexBuf: number[] = []
     let normalBuf: number[] = []
-    let uvTagBuf: number[] = []
+    let tagBuf: number[] = []
     let indexBuf: number[] = []
 
     let linesIndexBuf: number[] = []
@@ -512,7 +505,7 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
         poly.vertices.map(x => (
             vertexBuf.push(...x.pos),
             normalBuf.push(...x.normal),
-            uvTagBuf.push(...x.uv, poly.tag)
+            tagBuf.push(poly.tag)
         ))
         for (let i = 2; i < poly.vertices.length; i++) {
             indexBuf.push(startIdx, startIdx+i-1, startIdx+i)
@@ -547,9 +540,9 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     G.bindBuffer(gl.ARRAY_BUFFER, normal)
     G.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalBuf), gl.STATIC_DRAW)
 
-    let uv = G.createBuffer()!
-    G.bindBuffer(gl.ARRAY_BUFFER, uv)
-    G.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvTagBuf), gl.STATIC_DRAW)
+    let tag = G.createBuffer()!
+    G.bindBuffer(gl.ARRAY_BUFFER, tag)
+    G.bufferData(gl.ARRAY_BUFFER, new Float32Array(tagBuf), gl.STATIC_DRAW)
 
     let linesIndex: WebGLBuffer
     let linesVertex: WebGLBuffer
@@ -574,7 +567,7 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
             indexBufferLen: indexBuf.length,
             vertexBuffer: vertex,
             normalBuffer: normal,
-            uvTagBuffer: uv,
+            tagBuffer: tag,
             lines: {
                 indexBuffer: linesIndex!,
                 indexBufferLen: linesIndexBuf.length,
@@ -586,7 +579,7 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
             indexBufferLen: indexBuf.length,
             vertexBuffer: vertex,
             normalBuffer: normal,
-            uvTagBuffer: uv,
+            tagBuffer: tag,
         },
         sdfFunc
     ]
@@ -598,7 +591,7 @@ export let modelGeoDelete = (geo: ModelGeo): void => {
     G.deleteBuffer(geo.indexBuffer)
     G.deleteBuffer(geo.vertexBuffer)
     G.deleteBuffer(geo.normalBuffer)
-    G.deleteBuffer(geo.uvTagBuffer)
+    G.deleteBuffer(geo.tagBuffer)
     if (geo.lines) {
         G.deleteBuffer(geo.lines.indexBuffer)
         G.deleteBuffer(geo.lines.vertexBuffer)
