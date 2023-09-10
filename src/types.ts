@@ -25,6 +25,19 @@ export let v3Min = (a: Vec3, b: Vec3): Vec3 => a.map((x,i)=>Math.min(x,b[i])) as
 
 export let vecLerp = <T extends Vec2 | Vec3>(a: T, b: T, t: number): T => a.map((x,i)=>lerp(x,b[i],t)) as any as T
 
+export const radLerp = (a: number, b: number, t: number): number => {
+    let delta = b - a
+    let lerp = delta > Math.PI
+        ? delta - 2 * Math.PI
+        : delta < -Math.PI
+            ? delta + 2 * Math.PI
+            : delta
+    let ret = a + lerp * t
+    if (ret < 0) ret += 2*Math.PI
+    if (ret > 2*Math.PI) ret -= 2*Math.PI
+    return ret
+}
+
 export let v3Dot = ([x,y,z]: Vec3, [a,b,c]: Vec3): number => x*a + y*b + z*c
 export let v3Dot2 = (a: Vec3): number => v3Dot(a, a)
 export let v3Cross = ([x,y,z]: Vec3, [a,b,c]: Vec3): Vec3 => [y*c - z*b, z*a - x*c, x*b - y*a]
@@ -39,7 +52,7 @@ export let v3Reflect = (v: Vec3, norm: Vec3, normScale: number, tanScale: number
     let t0: Vec3 = [1 + sign * norm[0] * norm[0] * a, sign * b, -sign * norm[0]]
     let t1: Vec3 = [b, sign + norm[1] * norm[1] * a, -norm[1]]
 
-    let vn = normScale * v3Dot(v, norm)
+    let vn = -normScale * v3Dot(v, norm)
     let vt0 = tanScale * v3Dot(v, t0)
     let vt1 = tanScale * v3Dot(v, t1)
 

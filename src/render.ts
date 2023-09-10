@@ -1,7 +1,7 @@
 import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert } from "./shaders.gen"
-import { GameState } from "./state"
-import { Bool, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, v3Add, v3AddScale, v3Sub, Vec3, vecLerp } from "./types"
+import { GameState, predictShot } from "./state"
+import { Bool, False, lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, True, v3Add, v3Sub, Vec3, vecLerp } from "./types"
 import { worldGetCannon, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
 import { generatedTextures } from "./textures"
 import { ModelGeo } from "./csg"
@@ -11,6 +11,7 @@ declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
 declare const k_mouseSensitivity: number
 declare const k_packedTexWidth: number
+declare const k_aimSteps: number;
 
 export let textures: WebGLTexture[] = generatedTextures.map(pixels => {
     let tex = G.createTexture()!
@@ -31,10 +32,10 @@ G.depthFunc(gl.LEQUAL)
 
 let drawRayIndex = G.createBuffer()!
 G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
-G.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array([0,1]), gl.STATIC_DRAW)
+G.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(Array(2 * k_aimSteps).fill(0).map((_,i) => i)), gl.STATIC_DRAW)
 let drawRayVertex = G.createBuffer()!
 G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
-G.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,1]), gl.STATIC_DRAW)
+G.bufferData(gl.ARRAY_BUFFER, new Float32Array(6 * k_aimSteps), gl.DYNAMIC_DRAW)
 
 export let shaderCompile = (vert: string, frag: string): WebGLProgram => {
     let vs = G.createShader(gl.VERTEX_SHADER)!
@@ -93,6 +94,7 @@ let lazyPitch = 0
 let lazyYaw = 0
 let camOff: Vec3 = [0,0,0]
 let cannonPos: Vec3 = [0,0,0]
+let ballPos: Vec3 = [0,0,0]
 let oldBallMode: Bool
 let modeT = 0
 
@@ -119,27 +121,16 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         0.1,
         10000
     )
-    let modelMat = m4Mul(m4Mul(m4Translate(state.pos), m4Scale(0.2)), ballRot)
     let vp = m4Mul(projectionMat, viewMat)
+    let drawCannon, modelMat
 
-    let drawCannon, lazyLookVec: Vec3
-
-    // Player
     if (state.ballMode) {
-        G.useProgram(mainShader)
-        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
-        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
-        G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-            G.activeTexture(gl.TEXTURE0 + i),
-            G.bindTexture(gl.TEXTURE_2D, tex),
-            i
-        )))
-        modelGeoDraw(worldGetPlayer(), mainShader)
+        ballPos = state.pos
         drawCannon = modeT < 100
+        drawBall(vp, mainShader, True)
     } else {
-        lazyPitch += (predictedPitch - lazyPitch) * 0.01 * dt
-        lazyYaw += (predictedYaw - lazyYaw) * 0.01 * dt
-        lazyLookVec = m4MulPoint(m4Mul(m4RotY(lazyYaw), m4RotX(-lazyPitch)), [0,0,-state.camBack])
+        lazyPitch = lerp(lazyPitch, predictedPitch, 0.01 * dt)
+        lazyYaw = radLerp(lazyYaw, predictedYaw, 0.01 * dt)
         cannonPos = state.pos
         drawCannon = 1
     }
@@ -183,15 +174,36 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
 
     // Aim line
     if (!state.ballMode) {
+        let [predicted, pos] = predictShot(lazyYaw, lazyPitch, state.pos)
+        ballPos = pos
+        G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
+        G.bufferSubData(gl.ARRAY_BUFFER, 0, predicted)
+
         G.useProgram(aimRayShader)
-        G.uniform3fv(G.getUniformLocation(aimRayShader, 'u_pos0'), state.pos)
-        G.uniform3fv(G.getUniformLocation(aimRayShader, 'u_pos1'), v3AddScale(state.pos, lazyLookVec!, 100))
+        G.uniformMatrix4fv(G.getUniformLocation(aimRayShader, 'u_model'), false, m4Ident)
         G.uniformMatrix4fv(G.getUniformLocation(aimRayShader, 'u_vp'), false, vp)
         G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
-        let posLoc = G.getAttribLocation(aimRayShader, 'a_index')
+        let posLoc = G.getAttribLocation(aimRayShader, 'a_position')
         G.enableVertexAttribArray(posLoc)
-        G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
+        G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
         G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
-        G.drawElements(gl.LINES, 2, gl.UNSIGNED_SHORT, 0)
+        G.drawElements(gl.LINES, 2 * k_aimSteps, gl.UNSIGNED_SHORT, 0)
+
+        drawBall(vp, aimRayShader, False)
     }
+}
+
+const drawBall = (vp: Mat4, shader: WebGLProgram, drawTex: Bool): void => {
+    let modelMat = m4Mul(m4Mul(m4Translate(ballPos), m4Scale(0.2)), ballRot)
+    G.useProgram(shader)
+    G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_model'), false, modelMat)
+    G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_vp'), false, vp)
+    if (drawTex) {
+        G.uniform1iv(G.getUniformLocation(shader, 'u_tex'), textures.map((tex, i) => (
+            G.activeTexture(gl.TEXTURE0 + i),
+            G.bindTexture(gl.TEXTURE_2D, tex),
+            i
+        )))
+    }
+    modelGeoDraw(worldGetPlayer(), shader)
 }

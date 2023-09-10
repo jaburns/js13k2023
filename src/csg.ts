@@ -1,6 +1,6 @@
 // Ported from https://github.com/evanw/csg.js
 import * as gl from './glConsts'
-import { v3Negate, Vec3, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul, Mat4 } from "./types"
+import { v3Negate, Vec3, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul, Mat4 } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;

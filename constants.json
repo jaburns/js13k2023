@@ -1,6 +1,7 @@
 {
     "k_tickMillis": 33,
-    "k_pixelSize": 3,
+    "k_pixelSize": 2,
+    "k_aimSteps": 100,
     "k_packedTexWidth": 512,
     "k_numTextures": 4,
     "k_mouseSensitivity": 0.005
