@@ -72,7 +72,7 @@ export let inputsConsumeFrame = (): InputsFrame => {
 
 export let inputsAdd = (self: InputsFrame, other: InputsFrame): void => {
     for (let k in other.keysDown) {
-        self.keysDown[k] |= other.keysDown[k]
+        (self.keysDown as any)[k] |= (other.keysDown as any)[k]
     }
     self.mouseAccX += other.mouseAccX
     self.mouseAccY += other.mouseAccY

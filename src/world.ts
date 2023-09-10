@@ -1,6 +1,6 @@
 import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidLine, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
-import { Null, v3Add, v3AddScale, v3Dot2, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
+import { v3Add, v3AddScale, v3Dot2, v3Length, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
 

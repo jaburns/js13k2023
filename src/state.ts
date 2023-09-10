@@ -1,11 +1,13 @@
 import { InputsFrame } from "./inputs"
-import { lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, v3Add, v3AddScale, v3Cross, v3Length, v3Negate, v3Normalize, v3Reflect, Vec3, vecLerp } from "./types"
+import { Bool, False, lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, True, v3Add, v3AddScale, v3Cross, v3Length, v3Negate, v3Normalize, v3Reflect, Vec3, vecLerp } from "./types"
 import { worldNearestSurfacePoint, worldRaycast } from "./world";
 
 declare const k_mouseSensitivity: number;
 declare const k_tickMillis: number;
 
 export type GameState = {
+    ballMode: Bool,
+    holdingMouse: Bool,
     tick: number,
     yaw: number,
     pitch: number,
@@ -18,6 +20,8 @@ export type GameState = {
 }
 
 export let gameStateNew = (): GameState => ({
+    ballMode: False,
+    holdingMouse: False,
     tick: 0,
     yaw: 0,
     pitch: 0,
@@ -30,6 +34,8 @@ export let gameStateNew = (): GameState => ({
 })
 
 export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: number): GameState => ({
+    ballMode: b.ballMode,
+    holdingMouse: b.holdingMouse,
     tick: lerp(a.tick, b.tick, t),
     yaw: b.yaw,
     pitch: b.pitch,
@@ -53,30 +59,23 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     state.pitch = Math.max(-1.5, Math.min(1.5, state.pitch))
     state.yaw %= 2*Math.PI
 
-    return state;
-
     let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch)), [0,0,-1])
-    let strafeVec = m4MulPoint(m4RotY(state.yaw+Math.PI/2), [0,0,-1])
-    let moveVec: Vec3 = [0,0,0]
+    let click = !state.holdingMouse && inputs.keysDown[0]
+    state.holdingMouse = inputs.keysDown[0]
 
-    if (inputs.keysDown['W']) {
-        moveVec = v3AddScale(moveVec, lookVec, 0.5)
+    if (!state.ballMode) {
+        if (click) {
+            state.ballMode = True
+            state.vel = v3AddScale([0,0,0], lookVec, 30)
+        }
+        return state;
     }
-    if (inputs.keysDown['S']) {
-        moveVec = v3AddScale(moveVec, lookVec, -0.5)
+
+    if (click) {
+        state.ballMode = False
     }
-    if (inputs.keysDown['D']) {
-        moveVec = v3AddScale(moveVec, strafeVec, 0.5)
-    }
-    if (inputs.keysDown['A']) {
-        moveVec = v3AddScale(moveVec, strafeVec, -0.5)
-    }
-    if (inputs.keysDown['c'] && state.grounded) {
-        state.grounded = 0
-        state.vel = v3Add(state.vel, [0,10,0])
-    }
-    state.vel = v3Add(state.vel, moveVec)
-    state.vel = v3Add(state.vel, [0,-0.8,0])
+
+    state.vel = v3Add(state.vel, [0,-0.6,0])
     state.pos = v3Add(state.pos, state.vel)
 
     let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!

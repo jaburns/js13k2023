@@ -1,6 +1,6 @@
 // Ported from https://github.com/evanw/csg.js
 import * as gl from './glConsts'
-import { v3Negate, Vec3, Null, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul, Mat4 } from "./types"
+import { v3Negate, Vec3, v3Dot, v3Cross, v3Sub, v3Normalize, vecLerp, v3Max, v3Length, v3Abs, Vec2, v3AddScale, m4RotX, m4RotY, m4RotZ, m4Mul, m4MulPoint, v3Add, v3Mul, Mat4 } from "./types"
 
 declare const G: WebGLRenderingContext;
 declare const EDITOR: boolean;
@@ -101,16 +101,16 @@ let csgPlaneSplitPolygon = (
 // ----------------------------------------------------------------------------
 
 type CsgNode = {
-    plane: CsgPlane | Null,
-    front: CsgNode | Null,
-    backk: CsgNode | Null,
+    plane: CsgPlane | 0,
+    front: CsgNode | 0,
+    backk: CsgNode | 0,
     polygons: CsgPolygon[],
 }
 
 let csgNodeNew = (): CsgNode => ({
-    plane: Null,
-    front: Null,
-    backk: Null,
+    plane: 0,
+    front: 0,
+    backk: 0,
     polygons: [],
 })
 

@@ -1,9 +1,6 @@
-export type Bool = 0 | 1
+export type Bool = 0 | 1 | undefined
 export const False: Bool = 0
 export const True: Bool = 1
-
-export type Null = 0
-export const Null: Null = 0
 
 export let lerp = (a: number, b: number, t: number): number => a + t*(b-a)
 

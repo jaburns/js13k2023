@@ -1,7 +1,7 @@
 import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert } from "./shaders.gen"
 import { GameState } from "./state"
-import { m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, v3Add, v3AddScale, v3Sub, Vec3 } from "./types"
+import { Bool, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, v3Add, v3AddScale, v3Sub, Vec3, vecLerp } from "./types"
 import { worldGetCannon, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
 import { generatedTextures } from "./textures"
 import { ModelGeo } from "./csg"
@@ -89,23 +89,31 @@ export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
 }
 
 let ballRot: Mat4 = m4Ident
-
-let pp = 0
-let py = 0
+let lazyPitch = 0
+let lazyYaw = 0
+let camOff: Vec3 = [0,0,0]
+let cannonPos: Vec3 = [0,0,0]
+let oldBallMode: Bool
+let modeT = 0
 
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState, dt: number): void => {
     let predictedYaw = earlyInputs.mouseAccX * k_mouseSensitivity + state.yaw
     let predictedPitch = earlyInputs.mouseAccY * k_mouseSensitivity + state.pitch
     predictedPitch = Math.max(-1.5, Math.min(1.5, predictedPitch))
+    modeT += dt
+
     let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-state.camBack])
-    pp += (predictedPitch - pp) * 0.1
-    py += (predictedYaw - py) * 0.1
-    let lazyLookVec = m4MulPoint(m4Mul(m4RotY(py), m4RotX(-pp)), [0,0,-state.camBack])
+
+    camOff = vecLerp(camOff, state.ballMode ? [0,20,0] : [-50,60,0], 0.01 * dt)
 
     ballRot = m4Mul(m4AxisAngle(state.rotAxis, state.rotSpeed * dt), ballRot)
 
     let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
-    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, [0,60,0])))) // 20 for ball, 60 for cannon
+    let fwdLookMat = m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch))
+
+    let camOffset: Vec3 = m4MulPoint(fwdLookMat, camOff)
+
+    let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, camOffset))))
     let projectionMat = m4Perspective(
         CC.height / CC.width,
         0.1,
@@ -114,29 +122,45 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let modelMat = m4Mul(m4Mul(m4Translate(state.pos), m4Scale(0.2)), ballRot)
     let vp = m4Mul(projectionMat, viewMat)
 
+    let drawCannon, lazyLookVec: Vec3
+
     // Player
-    G.useProgram(mainShader)
-    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
-    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
-    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl.TEXTURE0 + i),
-        G.bindTexture(gl.TEXTURE_2D, tex),
-        i
-    )))
-    modelGeoDraw(worldGetPlayer(), mainShader)
+    if (state.ballMode) {
+        G.useProgram(mainShader)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+        G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
+            G.activeTexture(gl.TEXTURE0 + i),
+            G.bindTexture(gl.TEXTURE_2D, tex),
+            i
+        )))
+        modelGeoDraw(worldGetPlayer(), mainShader)
+        drawCannon = modeT < 100
+    } else {
+        lazyPitch += (predictedPitch - lazyPitch) * 0.01 * dt
+        lazyYaw += (predictedYaw - lazyYaw) * 0.01 * dt
+        lazyLookVec = m4MulPoint(m4Mul(m4RotY(lazyYaw), m4RotX(-lazyPitch)), [0,0,-state.camBack])
+        cannonPos = state.pos
+        drawCannon = 1
+    }
 
+    if (drawCannon) {
+        modelMat = m4Mul(m4Translate(cannonPos), m4Mul(m4RotY(lazyYaw), m4RotX(-lazyPitch)))
+        G.useProgram(mainShader)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+        G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
+            G.activeTexture(gl.TEXTURE0 + i),
+            G.bindTexture(gl.TEXTURE_2D, tex),
+            i
+        )))
+        modelGeoDraw(worldGetCannon(), mainShader)
+    }
 
-    // Cannon
-    modelMat = m4Mul(m4RotY(py), m4RotX(-pp))
-    G.useProgram(mainShader)
-    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
-    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
-    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl.TEXTURE0 + i),
-        G.bindTexture(gl.TEXTURE_2D, tex),
-        i
-    )))
-    modelGeoDraw(worldGetCannon(), mainShader)
+    if (oldBallMode != state.ballMode) {
+        oldBallMode = state.ballMode
+        modeT = 0
+    }
 
     // World
     G.useProgram(mainShader)
@@ -158,14 +182,16 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.enable(gl.CULL_FACE)
 
     // Aim line
-    G.useProgram(aimRayShader)
-    G.uniform3fv(G.getUniformLocation(aimRayShader, 'u_pos0'), state.pos)
-    G.uniform3fv(G.getUniformLocation(aimRayShader, 'u_pos1'), v3AddScale(state.pos, lazyLookVec, 100))
-    G.uniformMatrix4fv(G.getUniformLocation(aimRayShader, 'u_vp'), false, vp)
-    G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
-    let posLoc = G.getAttribLocation(aimRayShader, 'a_index')
-    G.enableVertexAttribArray(posLoc)
-    G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
-    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
-    G.drawElements(gl.LINES, 2, gl.UNSIGNED_SHORT, 0)
+    if (!state.ballMode) {
+        G.useProgram(aimRayShader)
+        G.uniform3fv(G.getUniformLocation(aimRayShader, 'u_pos0'), state.pos)
+        G.uniform3fv(G.getUniformLocation(aimRayShader, 'u_pos1'), v3AddScale(state.pos, lazyLookVec!, 100))
+        G.uniformMatrix4fv(G.getUniformLocation(aimRayShader, 'u_vp'), false, vp)
+        G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
+        let posLoc = G.getAttribLocation(aimRayShader, 'a_index')
+        G.enableVertexAttribArray(posLoc)
+        G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
+        G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
+        G.drawElements(gl.LINES, 2, gl.UNSIGNED_SHORT, 0)
+    }
 }
