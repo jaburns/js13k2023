@@ -3,7 +3,6 @@ import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
 import { renderGame } from './render'
 import { gameStateLerp, gameStateNew, gameStateTick } from './state'
 import { False, True } from './types'
-import { sndOllie, zzfxP } from './zzfx'
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
@@ -61,10 +60,6 @@ let frame = (now: number) => {
     }
 
     renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis), dt)
-
-    if (Math.random() < 0.01) {
-        zzfxP(sndOllie)
-    }
 }
 
 if (EDITOR) {

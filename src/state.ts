@@ -1,6 +1,7 @@
 import { InputsFrame } from "./inputs"
 import { Bool, False, lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, True, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Reflect, Vec3, vecLerp } from "./types"
 import { worldNearestSurfacePoint, worldRaycast } from "./world";
+import { sndOllie, zzfxP } from "./zzfx";
 
 declare const k_mouseSensitivity: number;
 declare const k_tickMillis: number;
@@ -85,6 +86,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
 
     if (!state.ballMode) {
         if (click) {
+            zzfxP(sndOllie)
             state.ballMode = True
             state.vel = v3AddScale([0,0,0], lookVec, 30)
             state.rotSpeed = 0
