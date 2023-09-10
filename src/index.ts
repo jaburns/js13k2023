@@ -60,7 +60,7 @@ let frame = (now: number) => {
         accTickInputs = inputsNew()
     }
 
-    renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis))
+    renderGame(accTickInputs, gameStateLerp(prevState, curState, accTime / k_tickMillis), dt)
 
     if (Math.random() < 0.01) {
         zzfxP(sndOllie)

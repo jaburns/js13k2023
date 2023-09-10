@@ -1,20 +1,24 @@
 import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidLine, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete } from "./csg"
 import { ModelGeo } from "./csg"
-import { Null, v3Add, v3AddScale, v3Dot2, v3Length, v3Normalize, v3Sub, Vec3 } from "./types"
+import { Null, v3Add, v3AddScale, v3Dot2, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
 
 // ------------------------------------------------------------------------------------
 
 let [worldGeo,worldFn]=csgSolidBake(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidBox(0,0,-1000,0,10000,1000,10000,0,0,0,0),csgSolidBox(1,0,200,0,1830,220,1120,0,0,0,200)),csgSolidBox(2,-1930,200,0,700,300,240,0,0,0,200)),csgSolidBox(1,-2690,-140,0,860,190,130,0,0,-10,0)),csgSolidLine(2,2110,0,-1800,2000,800,400,45,90,0)))
 export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1000","0","10000","1000","10000","0","0","0","0"]],[0,["box","1","0","200","0","1830","220","1120","0","0","0","200"]],[0,["sub"]],[0,["box","2","-1930","200","00","700","300","240","0","0","0","200"]],[0,["sub"]],[0,["box","1","-2690","-140","0","860","190","130","0","0","-10","0"]],[0,["add"]],[0,["line","2","2110","0","-1800","2000","800","400","45","90","0"]],[0,["sub"]]]
 
+let [cannonGeo,_]=csgSolidBake(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidLine(1,100,0,0,200,20,20,90,90,0),csgSolidBox(1,0,0,0,15,50,50,0,0,0,0)),csgSolidBox(1,71,0,0,52,50,50,0,0,0,0)),csgSolidBox(1,-71,0,0,52,50,50,0,0,0,0)),csgSolidLine(1,0,0,0,40,19,12,0,-90,0)),csgSolidBox(1,0,0,-90,50,50,50,0,0,0,0)),csgSolidLine(3,0,0,0,40,10,10,0,-90,0)))
+//export let worldSourceList:[number,string[]][]=[[0,["line","1","100","0","0","200","20","20","90","90","0"]],[0,["box","1","0","0","0","15","50","50","0","0","0","0"]],[0,["sub"]],[0,["box","1","71","0","0","52","50","50","0","0","0","0"]],[0,["sub"]],[0,["box","1","-71","0","0","52","50","50","0","0","0","0"]],[0,["sub"]],[0,["line","1","0","0","0","40","19","12","0","-90","0"]],[0,["add"]],[0,["box","1","0","0","-90","50","50","50","0","0","0","0"]],[0,["sub"]],[0,["line","3","0","0","0","40","10","10","0","-90","0"]],[0,["sub"]],[0,[""]]]
+
 // ----------------------
 
 let skyboxGeo = csgSolidBake(csgSolidBox(0, 0,0,0, 1,1,1, 0,0,0,  0))[0]
-let playerGeo = csgSolidBake(csgSolidBox(2, 0,0,0, 0,0,0, 0,0,0, 10))[0]
+let playerGeo = csgSolidBake(csgSolidBox(3, 0,0,0, 0,0,0, 0,0,0, 50))[0]
 
 export let worldGetGeo = (): ModelGeo => worldGeo
 export let worldGetSky = (): ModelGeo => skyboxGeo
 export let worldGetPlayer = (): ModelGeo => playerGeo
+export let worldGetCannon = (): ModelGeo => cannonGeo
 
 const eps = 0.001
 
@@ -24,17 +28,6 @@ let worldSampleNormal = (pos: Vec3): Vec3 =>
         worldFn(v3Add(pos,[0,eps,0])) - worldFn(v3Sub(pos,[0,eps,0])),
         worldFn(v3Add(pos,[0,0,eps])) - worldFn(v3Sub(pos,[0,0,eps]))
     ])
-
-//export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): [Vec3, Vec3] | Null => {
-//    for (let i = 0, traveled = 0, marchPoint = pos, dist; i < 50 && traveled < len; ++i) {
-//        traveled += (dist = worldFn(marchPoint))
-//        if (dist < eps) {
-//            return [marchPoint, worldSampleNormal(marchPoint)]
-//        }
-//        marchPoint = v3AddScale(marchPoint, normalizedDir, dist)
-//    }
-//    return Null
-//}
 
 export let worldNearestSurfacePoint = (pos: Vec3): [Vec3, Vec3, number] | undefined => {
     for (let i = 0, marchPoint = pos, dist, norm; i < 50; ++i) {
@@ -47,6 +40,18 @@ export let worldNearestSurfacePoint = (pos: Vec3): [Vec3, Vec3, number] | undefi
         marchPoint = v3AddScale(marchPoint, norm, -dist)
     }
     return undefined
+}
+
+export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): number  => {
+    let i = 0, traveled = 0, marchPoint = pos, dist
+    for (; i < 50 && traveled < len; ++i) {
+        traveled += (dist = worldFn(marchPoint))
+        if (dist < eps) {
+            return traveled
+        }
+        marchPoint = v3AddScale(marchPoint, normalizedDir, dist)
+    }
+    return len
 }
 
 // ------------------------------------------------------------------------------------

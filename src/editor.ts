@@ -3,7 +3,7 @@ import * as gl from './glConsts'
 import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile, textures } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag, debugRay_vert, debugRay_frag } from "./shaders.gen"
-import { m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
+import { m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 
 declare const CC: HTMLCanvasElement
@@ -258,7 +258,8 @@ let render = (): void => {
     //G.enable(gl.CULL_FACE)
 
     G.useProgram(mainShader)
-    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_mvp'), false, vp)
+    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+    G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, m4Ident)
     G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
         G.activeTexture(gl.TEXTURE0 + i),
         G.bindTexture(gl.TEXTURE_2D, tex),
@@ -278,7 +279,8 @@ let render = (): void => {
                 continue;
             }
             let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
-            G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_mvp'), false, m4Mul(vp, m4Translate(pos)))
+            G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_vp'), false, vp)
+            G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_model'), false, m4Translate(pos))
 
             if (pickedIndex === -1 && v3Length(v3Cross(mouseRayDir, v3Sub(pos, mouseRayOrigin))) < 10) {
                 pickedIndex = i
