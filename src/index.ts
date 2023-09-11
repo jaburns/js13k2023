@@ -5,6 +5,7 @@ import { gameStateLerp, gameStateNew, gameStateTick } from './state'
 import { False, True } from './types'
 
 declare const CC: HTMLCanvasElement
+declare const C2: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 declare const EDITOR: boolean
 declare const k_tickMillis: number
@@ -22,8 +23,9 @@ let curState = gameStateNew()
     style.cursor = 'pointer'
 })
 
-let resize = () =>
-    G.viewport(0, 0, CC.width=window.innerWidth/k_pixelSize, CC.height=window.innerHeight/k_pixelSize)
+let resize = () => {
+    G.viewport(0, 0, C2.width=CC.width=window.innerWidth/k_pixelSize, C2.height=CC.height=window.innerHeight/k_pixelSize)
+}
 
 let accTime = 0
 let prevNow = 0

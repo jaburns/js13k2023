@@ -9,6 +9,7 @@ import { ModelGeo } from "./csg"
 declare const DEBUG: boolean
 declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
+declare const C2: HTMLCanvasElement
 declare const k_mouseSensitivity: number
 declare const k_packedTexWidth: number
 declare const k_aimSteps: number;
@@ -24,6 +25,40 @@ export let textures: WebGLTexture[] = generatedTextures.map(pixels => {
     G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
     return tex
 })
+
+
+
+
+let ctx = C2.getContext('2d')!
+let ctxfb = G.createFramebuffer()!
+let ctxtx = G.createTexture()!
+
+G.bindFramebuffer(gl.FRAMEBUFFER, ctxfb)
+G.bindTexture(gl.TEXTURE_2D, ctxtx)
+G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, C2.width, C2.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+G.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctxtx, 0)
+
+
+
+let blitTriBuffer = G.createBuffer()!
+G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
+G.bufferData(gl.ARRAY_BUFFER, Uint8Array.of(1, 1, 1, 128, 128, 1), gl.STATIC_DRAW)
+G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
+
+G.useProgram(blitShader)
+g.uniform1i(g.getUniformLocation('u_tex', ctxtx))
+g.uniform2f(g.getUniformLocation('u_size', C2.width, C2.height))
+
+let posLoc = G.getAttribLocation(blitShader, 'a_position')
+G.enableVertexAttribArray(posLoc)
+G.vertexAttribPointer(posLoc, 2, gl.BYTE, false, 0, 0)
+G.drawArrays(gl.TRIANGLES, 0, 3)
+
+
+
 
 G.enable(gl.DEPTH_TEST)
 G.enable(gl.BLEND)
@@ -66,6 +101,7 @@ export let shaderCompile = (vert: string, frag: string): WebGLProgram => {
 let mainShader = shaderCompile(main_vert, main_frag)
 let skyShader = shaderCompile(sky_vert, sky_frag)
 let aimRayShader = shaderCompile(aimRay_vert, aimRay_frag)
+let blitShader = shaderCompile(blit_vert, blit_frag)
 
 export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
     G.bindBuffer(gl.ARRAY_BUFFER, self.vertexBuffer)
@@ -123,16 +159,11 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     }
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch)), [0,0,-state.camBack])
-
     camOff = vecLerp(camOff, state.ballMode ? [0,20,0] : [-50,60,0], 0.01 * dt)
-
     ballRot = m4Mul(m4AxisAngle(state.rotAxis, state.rotSpeed * dt), ballRot)
-
     let lookMat = m4Mul(m4RotX(mainPitch), m4RotY(-mainYaw))
     let fwdLookMat = m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch))
-
     let camOffset: Vec3 = m4MulPoint(fwdLookMat, camOff)
-
     let viewMat = m4Mul(lookMat, m4Translate(v3Sub(lookVec, v3Add(state.pos, camOffset))))
     let projectionMat = m4Perspective(
         CC.height / CC.width,
@@ -141,6 +172,9 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     )
     let vp = m4Mul(projectionMat, viewMat)
     let drawCannon, modelMat
+
+    ctx.clearRect(0, 0, C2.width, C2.height)
+    ctx.fillText("Hello world", 100, 100)
 
     if (state.ballMode) {
         ballPos = state.pos

@@ -22,6 +22,10 @@ const CLOSURE_COMPILER_EXTERNS = `
  */
 var CC;
 /**
+ * @type {!HTMLCanvasElement}
+ */
+var C2;
+/**
  * @type {!WebGLRenderingContext}
  */
 var G;
@@ -143,7 +147,7 @@ const main = () => {
 
         fs.writeFileSync('bundle2.js', fs.readFileSync('bundle2.js', 'utf8').replace(/var /g, 'let '))
 
-        run('terser --ecma 2020 --mangle reserved=[CC,G] --mangle_props keep_quoted --compress passes=10,keep_fargs=false,pure_getters=true,unsafe=true,unsafe_arrows=true,unsafe_comps=true,unsafe_math=true,unsafe_methods=true,unsafe_symbols=true --format quote_style=1 --output bundle3.js bundle2.js')
+        run('terser --ecma 2020 --mangle reserved=[CC,C2,G] --mangle_props keep_quoted --compress passes=10,keep_fargs=false,pure_getters=true,unsafe=true,unsafe_arrows=true,unsafe_comps=true,unsafe_math=true,unsafe_methods=true,unsafe_symbols=true --format quote_style=1 --output bundle3.js bundle2.js')
         sh.cd('..')
 
         x = fs.readFileSync('build/bundle3.js', 'utf8');
@@ -163,8 +167,10 @@ const main = () => {
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')
     }
 
-    fs.writeFileSync('build/index.html', `<canvas id=CC style=image-rendering:pixelated><script>${x}</script>`)
-    fs.writeFileSync('build/index_no_rr.html', `<canvas id=CC style=image-rendering:pixelated><script>${noRr}</script>`)
+    let html = js => `<canvas id=CC style=image-rendering:pixelated></canvas><canvas id=C2></canvas><script>${js}</script>`
+
+    fs.writeFileSync('build/index.html', html(x))
+    fs.writeFileSync('build/index_no_rr.html', html(noRr))
 
     if (!DEBUG) {
         run(advzipPath + ' --shrink-insane -i 10 -a out.zip build/index.html')
