@@ -1,7 +1,7 @@
 import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert } from "./shaders.gen"
 import { GameState, predictShot } from "./state"
-import { Bool, False, lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, True, v3Add, v3Sub, Vec3, vecLerp } from "./types"
+import { Bool, lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3Sub, Vec3, vecLerp } from "./types"
 import { worldGetCannon, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
 import { generatedTextures } from "./textures"
 import { ModelGeo } from "./csg"
@@ -90,11 +90,18 @@ export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
 }
 
 let ballRot: Mat4 = m4Ident
+
+let mainPitch = 0
+let mainYaw = 0
+let unlockT = 0
+
 let lazyPitch = 0
 let lazyYaw = 0
+
 let camOff: Vec3 = [0,0,0]
 let cannonPos: Vec3 = [0,0,0]
 let ballPos: Vec3 = [0,0,0]
+
 let oldBallMode: Bool
 let modeT = 0
 
@@ -104,14 +111,25 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     predictedPitch = Math.max(-1.5, Math.min(1.5, predictedPitch))
     modeT += dt
 
-    let lookVec = m4MulPoint(m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch)), [0,0,-state.camBack])
+    if (state.lockView) {
+        unlockT = 500
+    } else if (unlockT > 0) {
+        mainPitch = lerp(mainPitch, predictedPitch, 0.02 * dt)
+        mainYaw = radLerp(mainYaw, predictedYaw, 0.02 * dt)
+        unlockT -= dt
+    } else {
+        mainPitch = predictedPitch
+        mainYaw = predictedYaw
+    }
+
+    let lookVec = m4MulPoint(m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch)), [0,0,-state.camBack])
 
     camOff = vecLerp(camOff, state.ballMode ? [0,20,0] : [-50,60,0], 0.01 * dt)
 
     ballRot = m4Mul(m4AxisAngle(state.rotAxis, state.rotSpeed * dt), ballRot)
 
-    let lookMat = m4Mul(m4RotX(predictedPitch), m4RotY(-predictedYaw))
-    let fwdLookMat = m4Mul(m4RotY(predictedYaw), m4RotX(-predictedPitch))
+    let lookMat = m4Mul(m4RotX(mainPitch), m4RotY(-mainYaw))
+    let fwdLookMat = m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch))
 
     let camOffset: Vec3 = m4MulPoint(fwdLookMat, camOff)
 
@@ -127,7 +145,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     if (state.ballMode) {
         ballPos = state.pos
         drawCannon = modeT < 100
-        drawBall(vp, mainShader, True)
+        drawBall(vp, mainShader)
     } else {
         lazyPitch = lerp(lazyPitch, predictedPitch, 0.01 * dt)
         lazyYaw = radLerp(lazyYaw, predictedYaw, 0.01 * dt)
@@ -189,16 +207,18 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
         G.drawElements(gl.LINES, 2 * k_aimSteps, gl.UNSIGNED_SHORT, 0)
 
-        drawBall(vp, aimRayShader, False)
+        drawBall(vp, aimRayShader, [0,1,.1])
     }
 }
 
-const drawBall = (vp: Mat4, shader: WebGLProgram, drawTex: Bool): void => {
+const drawBall = (vp: Mat4, shader: WebGLProgram, color?: Vec3): void => {
     let modelMat = m4Mul(m4Mul(m4Translate(ballPos), m4Scale(0.2)), ballRot)
     G.useProgram(shader)
     G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_model'), false, modelMat)
     G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_vp'), false, vp)
-    if (drawTex) {
+    if (shader === aimRayShader) {
+        G.uniform3fv(G.getUniformLocation(shader, 'u_color'), color!)
+    } else {
         G.uniform1iv(G.getUniformLocation(shader, 'u_tex'), textures.map((tex, i) => (
             G.activeTexture(gl.TEXTURE0 + i),
             G.bindTexture(gl.TEXTURE_2D, tex),

@@ -4,5 +4,7 @@
     "k_aimSteps": 100,
     "k_packedTexWidth": 512,
     "k_numTextures": 4,
-    "k_mouseSensitivity": 0.005
+    "k_ballRadius": 10,
+    "k_mouseSensitivity": 0.005,
+    "k_gravity": -0.6
 }

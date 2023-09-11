@@ -41,6 +41,10 @@ document.onmousemove = (e: MouseEvent): void => {
     }
 }
 
+document.onwheel = (e: WheelEvent) => {
+    console.log(e)
+}
+
 document.onmousedown = (e: MouseEvent) => {
     if (!EDITOR && document.pointerLockElement !== CC) {
         CC.requestPointerLock()
