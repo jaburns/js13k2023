@@ -9,8 +9,16 @@ declare const k_ballRadius: number;
 declare const k_aimSteps: number;
 declare const k_gravity: number;
 
+export const enum GameMode {
+    Menu,
+    FirstAim,
+    LaterAim,
+    Ball,
+    Dead,
+}
+
 export type GameState = {
-    ballMode: Bool,
+    mode: GameMode,
     holdingMouse: Bool,
     lockView: Bool,
     yaw: number,
@@ -20,11 +28,12 @@ export type GameState = {
     rotSpeed: number, // rads per ms
     rotAxis: Vec3,
     camBack: number,
-    equippedShot: number,
+    ammo: number,
+    modeTick: number,
 }
 
 export let gameStateNew = (): GameState => ({
-    ballMode: False,
+    mode: GameMode.Menu,
     holdingMouse: False,
     lockView: False,
     yaw: 0,
@@ -34,11 +43,12 @@ export let gameStateNew = (): GameState => ({
     rotSpeed: 0,
     rotAxis: [0,0,0],
     camBack: 100,
-    equippedShot: 0,
+    ammo: 3,
+    modeTick: 0,
 })
 
 export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: number): GameState => ({
-    ballMode: b.ballMode,
+    mode: b.mode,
     holdingMouse: b.holdingMouse,
     lockView: b.lockView,
     yaw: b.yaw,
@@ -48,7 +58,8 @@ export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: n
     rotSpeed: b.rotSpeed,
     rotAxis: b.rotAxis,
     camBack: lerp(a.camBack, b.camBack, t),
-    equippedShot: b.equippedShot,
+    ammo: b.ammo,
+    modeTick: b.modeTick,
 })
 
 export let predictShot = (yaw: number, pitch: number, pos: Vec3): [Float32Array, Vec3] => {
@@ -79,40 +90,57 @@ export let predictShot = (yaw: number, pitch: number, pos: Vec3): [Float32Array,
 
 export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame): GameState => {
     let state = gameStateLerp(prevState, prevState, 0)
+    state.modeTick++
 
-    state.lockView = (inputs.keysDown[2] && !state.ballMode) as any
-
-    state.yaw += inputs.mouseAccX * k_mouseSensitivity
-    state.pitch += inputs.mouseAccY * k_mouseSensitivity
-    state.pitch = Math.max(-1.5, Math.min(1.5, state.pitch))
-    if (state.yaw < 0) state.yaw += 2*Math.PI
-    if (state.yaw > 2*Math.PI) state.yaw -= 2*Math.PI
+    if (state.mode != GameMode.Menu && state.mode != GameMode.Dead) {
+        state.lockView = (inputs.keysDown[2] && (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim)) as any
+        state.yaw += inputs.mouseAccX * k_mouseSensitivity
+        state.pitch += inputs.mouseAccY * k_mouseSensitivity
+        state.pitch = Math.max(-1.5, Math.min(1.5, state.pitch))
+        if (state.yaw < 0) state.yaw += 2*Math.PI
+        if (state.yaw > 2*Math.PI) state.yaw -= 2*Math.PI
+    }
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(state.yaw), m4RotX(-state.pitch)), [0,0,-1])
     let click = !state.holdingMouse && inputs.keysDown[0]
     state.holdingMouse = inputs.keysDown[0]
 
-    if (!state.ballMode) {
+    if (state.mode == GameMode.Menu) {
         if (click) {
+            state.mode = GameMode.LaterAim
+        }
+    } else if (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) {
+        if (click && state.ammo > 0) {
             zzfxP(sndOllie)
-            state.ballMode = True
+            state.ammo -= 1
+            state.mode = GameMode.Ball
             state.vel = v3AddScale([0,0,0], lookVec, 30)
             state.rotSpeed = 0
         }
-    } else {
-        if (click) {
-            state.ballMode = False
-        } else {
-            state.vel = v3Add(state.vel, [0,k_gravity,0])
-            state.pos = v3Add(state.pos, state.vel)
-
-            let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
-            if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
-                state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
-                state.vel = v3Reflect(state.vel, nearNorm, 0.5, 0.99)
-                state.rotSpeed = v3Length(state.vel) / k_ballRadius / k_tickMillis
-                state.rotAxis = v3Negate(v3Normalize(v3Cross(state.vel, nearNorm)))
+    } else if (state.mode == GameMode.Ball || state.mode == GameMode.Dead) {
+        if (state.mode == GameMode.Ball) {
+            if (click) {
+                state.modeTick = 0
+                state.mode = state.ammo > 0
+                    ? GameMode.LaterAim
+                    : GameMode.Dead
             }
+        } else {
+            if (state.modeTick > 30) {
+                state = gameStateNew()
+                state.mode = GameMode.FirstAim
+            }
+        }
+
+        state.vel = v3Add(state.vel, [0,k_gravity,0])
+        state.pos = v3Add(state.pos, state.vel)
+
+        let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
+        if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
+            state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
+            state.vel = v3Reflect(state.vel, nearNorm, 0.5, 0.99)
+            state.rotSpeed = v3Length(state.vel) / k_ballRadius / k_tickMillis
+            state.rotAxis = v3Negate(v3Normalize(v3Cross(state.vel, nearNorm)))
         }
     }
 

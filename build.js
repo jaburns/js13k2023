@@ -158,7 +158,7 @@ const main = () => {
         x = x.substring(0, x.length - 1)
     }
 
-    x = "(()=>{let G=CC.getContext('webgl',{antialias:!1});" + x + "})()"
+    x = "(()=>{let G=CC.getContext('webgl',{antialias:!1,premultipliedAlpha:!1,alpha:!1});" + x + "})()"
     let noRr = x
 
     if (!DEBUG) {

@@ -1,7 +1,7 @@
 import * as gl from './glConsts'
-import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert } from "./shaders.gen"
-import { GameState, predictShot } from "./state"
-import { Bool, lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3Sub, Vec3, vecLerp } from "./types"
+import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert, blit_frag, blit_vert } from "./shaders.gen"
+import { GameMode, GameState, predictShot } from "./state"
+import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3Sub, Vec3, vecLerp } from "./types"
 import { worldGetCannon, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
 import { generatedTextures } from "./textures"
 import { ModelGeo } from "./csg"
@@ -18,7 +18,6 @@ export let textures: WebGLTexture[] = generatedTextures.map(pixels => {
     let tex = G.createTexture()!
     G.bindTexture(gl.TEXTURE_2D, tex)
     G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, k_packedTexWidth, k_packedTexWidth, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-    G.generateMipmap(gl.TEXTURE_2D)
     G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
     G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
     G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
@@ -30,32 +29,19 @@ export let textures: WebGLTexture[] = generatedTextures.map(pixels => {
 
 
 let ctx = C2.getContext('2d')!
-let ctxfb = G.createFramebuffer()!
 let ctxtx = G.createTexture()!
+let fade = 0
 
-G.bindFramebuffer(gl.FRAMEBUFFER, ctxfb)
+
 G.bindTexture(gl.TEXTURE_2D, ctxtx)
-G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, C2.width, C2.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
-G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-G.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, ctxtx, 0)
-
-
 
 let blitTriBuffer = G.createBuffer()!
 G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
-G.bufferData(gl.ARRAY_BUFFER, Uint8Array.of(1, 1, 1, 128, 128, 1), gl.STATIC_DRAW)
-G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
-
-G.useProgram(blitShader)
-g.uniform1i(g.getUniformLocation('u_tex', ctxtx))
-g.uniform2f(g.getUniformLocation('u_size', C2.width, C2.height))
-
-let posLoc = G.getAttribLocation(blitShader, 'a_position')
-G.enableVertexAttribArray(posLoc)
-G.vertexAttribPointer(posLoc, 2, gl.BYTE, false, 0, 0)
-G.drawArrays(gl.TRIANGLES, 0, 3)
+G.bufferData(gl.ARRAY_BUFFER, Float32Array.of(-1,-1,1,-1,-1,1, 1,1,-1,1,1,-1), gl.STATIC_DRAW)
 
 
 
@@ -84,7 +70,7 @@ export let shaderCompile = (vert: string, frag: string): WebGLProgram => {
 
     if (DEBUG) {
         let log = G.getShaderInfoLog(fs)
-        if (log === null || log.length > 0) {
+        if (log == null || log.length > 0) {
             console.log('Shader info log:\n' + log)
             if (log !== null && log.indexOf('ERROR') >= 0) {
                 console.error(frag.split('\n').map((x,i) => `${i+1}: ${x}`).join('\n'))
@@ -138,10 +124,14 @@ let camOff: Vec3 = [0,0,0]
 let cannonPos: Vec3 = [0,0,0]
 let ballPos: Vec3 = [0,0,0]
 
-let oldBallMode: Bool
+let oldMode: GameMode
 let modeT = 0
 
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState, dt: number): void => {
+    if (state.mode == GameMode.Dead) {
+        earlyInputs.mouseAccX = earlyInputs.mouseAccY = 0
+    }
+
     let predictedYaw = earlyInputs.mouseAccX * k_mouseSensitivity + state.yaw
     let predictedPitch = earlyInputs.mouseAccY * k_mouseSensitivity + state.pitch
     predictedPitch = Math.max(-1.5, Math.min(1.5, predictedPitch))
@@ -159,7 +149,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     }
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch)), [0,0,-state.camBack])
-    camOff = vecLerp(camOff, state.ballMode ? [0,20,0] : [-50,60,0], 0.01 * dt)
+    camOff = vecLerp(camOff, state.mode == GameMode.Ball || state.mode == GameMode.Dead ? [0,20,0] : [-50,60,0], 0.01 * dt)
     ballRot = m4Mul(m4AxisAngle(state.rotAxis, state.rotSpeed * dt), ballRot)
     let lookMat = m4Mul(m4RotX(mainPitch), m4RotY(-mainYaw))
     let fwdLookMat = m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch))
@@ -173,14 +163,12 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let vp = m4Mul(projectionMat, viewMat)
     let drawCannon, modelMat
 
-    ctx.clearRect(0, 0, C2.width, C2.height)
-    ctx.fillText("Hello world", 100, 100)
-
-    if (state.ballMode) {
+    if (state.mode == GameMode.Ball || state.mode == GameMode.Dead) {
         ballPos = state.pos
         drawCannon = modeT < 100
-        drawBall(vp, mainShader)
-    } else {
+        drawBall(vp, mainShader, 0)
+    }
+    if (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) {
         lazyPitch = lerp(lazyPitch, predictedPitch, 0.01 * dt)
         lazyYaw = radLerp(lazyYaw, predictedYaw, 0.01 * dt)
         cannonPos = state.pos
@@ -200,8 +188,8 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         modelGeoDraw(worldGetCannon(), mainShader)
     }
 
-    if (oldBallMode != state.ballMode) {
-        oldBallMode = state.ballMode
+    if (oldMode != state.mode) {
+        oldMode = state.mode
         modeT = 0
     }
 
@@ -225,7 +213,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.enable(gl.CULL_FACE)
 
     // Aim line
-    if (!state.ballMode) {
+    if ((state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) && drawCannon) {
         let [predicted, pos] = predictShot(lazyYaw, lazyPitch, state.pos)
         ballPos = pos
         G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
@@ -243,15 +231,75 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
 
         drawBall(vp, aimRayShader, [0,1,.1])
     }
+
+    // Fade level
+    if (state.mode == GameMode.Menu || state.mode == GameMode.FirstAim) {
+        fade = Math.min((modeT/1000)**2,1)
+    } else if (state.mode == GameMode.Dead) {
+        fade = 1-Math.min((modeT/1000)**2,1)
+    } else {
+        fade = 1
+    }
+
+    // UI draw
+    ctx.clearRect(0, 0, C2.width, C2.height)
+    ctx.strokeStyle='#e56b70'
+    ctx.fillStyle='#ffdb63'
+    ctx.textAlign = 'center'
+    if (state.mode == GameMode.Menu) {
+        ctx.font='bold 64px sans-serif'
+        ctx.lineWidth=3
+        drawText("CANNONBALF ", C2.width/2, 200)
+        ctx.font='bold 16px sans-serif'
+        ctx.lineWidth=.5
+        drawText("CLICK TO USE CANNON", C2.width/2, C2.height - 100)
+        drawText("RIGHT CLICK TO LOCK CAMERA", C2.width/2, C2.height - 100 + 20)
+    } else if (state.mode == GameMode.Dead) {
+        ctx.font='bold 32px sans-serif'
+        ctx.lineWidth=2
+        drawText("SORRY, TRY AGAIN!", C2.width/2, C2.height/2)
+    } else {
+        ctx.font='bold 32px sans-serif'
+        ctx.lineWidth=2
+        ctx.textAlign='left'
+        drawText("⚫ ⨯ "+state.ammo, 20, C2.height -25)
+        ctx.textAlign='right'
+        drawText(18+"/18 ⛳", C2.width -20, C2.height -25)
+    }
+    if (fade < 1) {
+        ctx.fillStyle = `rgba(0,0,0,${1-fade})`
+        ctx.fillRect(0,0,C2.width,C2.height)
+    }
+
+    // UI blit
+    G.disable(gl.DEPTH_TEST)
+    G.useProgram(blitShader)
+    G.activeTexture(gl.TEXTURE0)
+    G.bindTexture(gl.TEXTURE_2D, ctxtx)
+    G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, C2)
+    G.uniform1i(G.getUniformLocation(blitShader, 'u_tex'), 0)
+    G.uniform2f(G.getUniformLocation(blitShader, 'u_size'), C2.width, C2.height)
+    let posLoc = G.getAttribLocation(blitShader, 'a_position')
+    G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
+    G.enableVertexAttribArray(posLoc)
+    G.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
+    G.drawArrays(gl.TRIANGLES, 0, 6)
+    G.enable(gl.DEPTH_TEST)
 }
 
-const drawBall = (vp: Mat4, shader: WebGLProgram, color?: Vec3): void => {
+
+const drawText = (txt: string, x: number, y: number): void => {
+    ctx.fillText(txt, x, y)
+    ctx.strokeText(txt, x, y)
+}
+
+const drawBall = (vp: Mat4, shader: WebGLProgram, color: Vec3|0): void => {
     let modelMat = m4Mul(m4Mul(m4Translate(ballPos), m4Scale(0.2)), ballRot)
     G.useProgram(shader)
     G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_model'), false, modelMat)
     G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_vp'), false, vp)
-    if (shader === aimRayShader) {
-        G.uniform3fv(G.getUniformLocation(shader, 'u_color'), color!)
+    if (shader == aimRayShader) {
+        G.uniform3fv(G.getUniformLocation(shader, 'u_color'), color as any)
     } else {
         G.uniform1iv(G.getUniformLocation(shader, 'u_tex'), textures.map((tex, i) => (
             G.activeTexture(gl.TEXTURE0 + i),

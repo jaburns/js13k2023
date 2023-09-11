@@ -1,7 +1,7 @@
 {
     "k_tickMillis": 33,
     "k_pixelSize": 2,
-    "k_aimSteps": 100,
+    "k_aimSteps": 150,
     "k_packedTexWidth": 512,
     "k_numTextures": 4,
     "k_ballRadius": 10,
