@@ -1,6 +1,8 @@
 import { CsgSolid, csgSolidBake, csgSolidBox, csgSolidLine, csgSolidOpIntersect, csgSolidOpSubtract, csgSolidOpUnion, modelGeoDelete, SdfFunction } from "./csg"
 import { ModelGeo } from "./csg"
-import { v3Add, v3AddScale, v3Dot2, v3Length, v3Normalize, v3Sub, Vec3 } from "./types"
+import { m4Ident, Mat4, v3Add, v3AddScale, v3Dot2, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
+
+declare const k_tickMillis: number
 
 // ------------------------------------------------------------------------------------
 // Object models
@@ -14,7 +16,7 @@ export let [cannonGeo, _unused0]=csgSolidBake(csgSolidOpSubtract(csgSolidOpSubtr
 //export let worldSourceList:[number,string[]][]=[[0,[""]],[0,["#","Main","body","and","roof"]],[0,["box","2","0","0","0","130","100","130","0","0","0","0"]],[0,["box","2","0","100","0","100","25","100","0","0","0","0"]],[0,["sub"]],[0,[""]],[0,["#","Turrets"]],[0,["line","2","100","-119","100","400","50","50","0","0","0"]],[0,["add"]],[0,["line","2","100","-120","-100","400","50","50","0","0","0"]],[0,["add"]],[0,["line","2","-100","-120","-100","400","50","50","0","0","0"]],[0,["add"]],[0,["line","2","-100","-120","100","400","50","50","0","0","0"]],[0,["add"]],[0,[""]],[0,["#","Chop","the","bottom","off"]],[0,["box","2","0","-150","0","200","100","200","0","0","0","0"]],[0,["sub"]],[0,[""]],[0,["#","Turret","interior"]],[0,["line","2","100","-120","100","340","40","40","0","0","0"]],[0,["box","2","100","-50","100","50","170","50","0","0","0","0"]],[0,["sub"]],[0,["sub"]],[0,["line","2","100","0","-100","340","40","40","0","0","0"]],[0,["box","2","100","-50","-100","50","170","50","0","0","0","0"]],[0,["sub"]],[0,["sub"]],[0,["line","2","-100","-120","-100","340","40","40","0","0","0"]],[0,["box","2","-100","-50","-100","50","170","50","0","0","0","0"]],[0,["sub"]],[0,["sub"]],[0,["line","2","-100","-120","100","340","40","40","0","0","0"]],[0,["box","2","-100","-50","100","50","170","50","0","0","0","0"]],[0,["sub"]],[0,["sub"]],[0,[""]],[0,["#","Chop","the","top","off"]],[0,["box","2","0","250","0","200","100","200","0","0","0","0"]],[0,["sub"]],[0,[""]],[0,["#","Cut","doors","and","interior"]],[0,["box","2","0","-75","0","1","50","200","0","0","0","30"]],[0,["sub"]],[0,["box","2","0","-75","0","1","50","200","90","0","0","30"]],[0,["sub"]],[0,["box","2","0","-30","0","100","100","100","0","0","0","0"]],[0,["sub"]],[0,[""]],[0,["#","Turret","notches"]],[0,["box","2","0","150","100","200","20","10","0","0","0","0"]],[0,["sub"]],[0,["box","2","0","150","-100","200","20","10","0","0","0","0"]],[0,["sub"]],[0,["box","2","100","150","0","10","20","200","0","0","0","0"]],[0,["sub"]],[0,["box","2","-100","150","0","10","20","200","0","0","0","0"]],[0,["sub"]],[0,[""]],[0,[""]]]
 let castleBase = csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpUnion(csgSolidOpUnion(csgSolidOpUnion(csgSolidOpSubtract(csgSolidBox(2,0,0,0,130,100,130,0,0,0,0),csgSolidBox(2,0,100,0,100,25,100,0,0,0,0)),csgSolidLine(2,100,-119,100,400,50,50,0,0,0)),csgSolidLine(2,100,-120,-100,400,50,50,0,0,0)),csgSolidLine(2,-100,-120,-100,400,50,50,0,0,0)),csgSolidLine(2,-100,-120,100,400,50,50,0,0,0)),csgSolidBox(2,0,-150,0,200,100,200,0,0,0,0)),csgSolidOpSubtract(csgSolidLine(2,100,-120,100,340,40,40,0,0,0),csgSolidBox(2,100,-50,100,50,170,50,0,0,0,0))),csgSolidOpSubtract(csgSolidLine(2,100,0,-100,340,40,40,0,0,0),csgSolidBox(2,100,-50,-100,50,170,50,0,0,0,0))),csgSolidOpSubtract(csgSolidLine(2,-100,-120,-100,340,40,40,0,0,0),csgSolidBox(2,-100,-50,-100,50,170,50,0,0,0,0))),csgSolidOpSubtract(csgSolidLine(2,-100,-120,100,340,40,40,0,0,0),csgSolidBox(2,-100,-50,100,50,170,50,0,0,0,0))),csgSolidBox(2,0,250,0,200,100,200,0,0,0,0)),csgSolidBox(2,0,-75,0,1,50,200,0,0,0,30)),csgSolidBox(2,0,-75,0,1,50,200,90,0,0,30)),csgSolidBox(2,0,-30,0,100,100,100,0,0,0,0)),csgSolidBox(2,0,150,100,200,20,10,0,0,0,0)),csgSolidBox(2,0,150,-100,200,20,10,0,0,0,0)),csgSolidBox(2,100,150,0,10,20,200,0,0,0,0)),csgSolidBox(2,-100,150,0,10,20,200,0,0,0,0))
 export let [castleGeo, _unused1] = csgSolidBake(castleBase)
-export let castleGibs = Array(8)
+export let castleGibs: ModelGeo[] = Array(8)
 {
     const EXPLODE_CASTLE_TEXTURE = 2
     let i = 0
@@ -32,6 +34,39 @@ export let castleGibs = Array(8)
             }
         }
     }
+}
+export type CastleGib = {
+    kind: number,
+    offset: Vec3,
+    pos: Vec3,
+    vel: Vec3,
+    axis: Vec3,
+    omega: number,
+    rotation: Mat4,
+}
+export let gibCastle = (pos: Vec3, vel: Vec3): CastleGib[] => {
+    let ret: CastleGib[] = []
+    let i = 0
+    for (let x = -100; x < 150; x+=200) {
+        for (let y = -50; y < 200; y+=200) {
+            for (let z = -100; z < 150; z+=200) {
+                ret.push({
+                    kind: i++,
+                    pos: v3AddScale(pos,[x,y,z],0.25),
+                    vel: v3AddScale(v3AddScale([0,0,0],vel,0.8/k_tickMillis),[x,(y+100)/2,z],1e-3),
+                    offset: v3Negate([x,y,z]),
+                    axis: v3Normalize([
+                        2*Math.random()-1,
+                        2*Math.random()-1,
+                        2*Math.random()-1,
+                    ]),
+                    omega: 0.01 * Math.random(),
+                    rotation: m4Ident,
+                })
+            }
+        }
+    }
+    return ret
 }
 
 // ------------------------------------------------------------------------------------

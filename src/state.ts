@@ -8,9 +8,7 @@ declare const k_tickMillis: number;
 declare const k_ballRadius: number;
 declare const k_aimSteps: number;
 declare const k_gravity: number;
-
-const CASTLE_RADIUS_SQR = 40 * 40
-const POWER = 40
+declare const k_power: number;
 
 export const enum GameMode {
     Menu,
@@ -80,7 +78,7 @@ export let predictShot = (yaw: number, pitch: number, pos: Vec3): [Float32Array,
     let ret = new Float32Array(6 * k_aimSteps)
     let loopout
 
-    let vel = v3AddScale([0,0,0], lookVec, POWER)
+    let vel = v3AddScale([0,0,0], lookVec, k_power)
     for (let i = 0, j = 0; i < k_aimSteps; ++i) {
         ret[j++] = pos[0]
         ret[j++] = pos[1]
@@ -98,6 +96,7 @@ export let predictShot = (yaw: number, pitch: number, pos: Vec3): [Float32Array,
         ret[j++] = pos[1]
         ret[j++] = pos[2]
     }
+
     return [ret, pos]
 }
 
@@ -129,7 +128,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
             zzfxP(sndOllie)
             state.ammo -= 1
             state.mode = GameMode.Ball
-            state.vel = v3AddScale([0,0,0], lookVec, POWER)
+            state.vel = v3AddScale([0,0,0], lookVec, k_power)
             state.rotSpeed = 0
         }
     } else if (state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win) {
@@ -141,7 +140,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
                 testpos = v3AddScale(testpos, state.vel, 0.1)
                 for (let i = 0; i < castles.length; ++i) {
                     if (state.castlesHit.indexOf(i) >= 0) continue
-                    if (v3Dot2(v3Sub(castles[i] as any, testpos)) < CASTLE_RADIUS_SQR) {
+                    if (v3Dot2(v3Sub(castles[i] as any, testpos)) < 50*50) {
                         state.castlesHit.push(i)
                     }
                 }

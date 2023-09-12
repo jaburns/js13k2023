@@ -25,7 +25,7 @@ export let v3Min = (a: Vec3, b: Vec3): Vec3 => a.map((x,i)=>Math.min(x,b[i])) as
 
 export let vecLerp = <T extends Vec2 | Vec3>(a: T, b: T, t: number): T => a.map((x,i)=>lerp(x,b[i],t)) as any as T
 
-export const radLerp = (a: number, b: number, t: number): number => {
+export let radLerp = (a: number, b: number, t: number): number => {
     let delta = b - a
     let lerp = delta > Math.PI
         ? delta - 2 * Math.PI

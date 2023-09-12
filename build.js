@@ -145,8 +145,6 @@ const main = () => {
         fs.writeFileSync('externs.js', CLOSURE_COMPILER_EXTERNS)
         run('google-closure-compiler -O ADVANCED bundle1.js --js_output_file bundle2.js --externs externs.js')
 
-        fs.writeFileSync('bundle2.js', fs.readFileSync('bundle2.js', 'utf8').replace(/var /g, 'let '))
-
         run('terser --ecma 2020 --mangle reserved=[self,CC,C2,G] --mangle_props keep_quoted --compress passes=10,keep_fargs=false,pure_getters=true,unsafe=true,unsafe_arrows=true,unsafe_comps=true,unsafe_math=true,unsafe_methods=true,unsafe_symbols=true --format quote_style=1 --output bundle3.js bundle2.js')
         sh.cd('..')
 

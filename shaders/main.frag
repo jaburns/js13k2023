@@ -22,8 +22,8 @@ void main() {
 
     float sundir = dot(v_normal,normalize(vec3(5,1,5)));
 
-    const vec3 i_YELLOW = vec3(1,.86,.39);
-    const vec3 i_PINK = vec3(.9,.42,.44) + 0.1;
+    vec3 i_YELLOW = mix(vec3(1,.86,.39), vec3(1), 0.3);
+    vec3 i_PINK = mix(vec3(.9,.42,.44)+0.1, vec3(1), 0.3);
 
     vec3 mixColor = mix(i_PINK, i_YELLOW, 0.5+0.5*sundir);
     float shadowMul = 0.75+0.25*max(0.,sundir);

@@ -12,9 +12,10 @@ let textures: (0 | WebGLTexture)[] = Array(k_numTextures).fill(0)
 let genGrass: ColorFnBuilder = () => (_x, _y, _z, i, out) => {
     let brightness = Math.pow(Math.random(),4.0)
     let darkness = Math.pow(Math.random(),4.0)
-    out[i+0] = 255 * 0.2
-    out[i+1] = 255 * (0.6-0.1*brightness + 0.1*darkness)
-    out[i+2] = 255 * 0.2
+    let adjust = 0.6-0.1*brightness + 0.1*darkness
+    out[i+0] = 255 * 0.3
+    out[i+1] = 255 * adjust
+    out[i+2] = 255 * 0.25 * adjust
 }
 
 
@@ -35,8 +36,8 @@ let genRock: ColorFnBuilder = () => {
         let minDistance = Infinity;
         let secondMinDistance = Infinity;
 
-        for (const [cx, cy, cz] of voronoiCenters) {
-            const dist = tilingDistance3D(x, y, z, cx, cy, cz);
+        for (let [cx, cy, cz] of voronoiCenters) {
+            let dist = tilingDistance3D(x, y, z, cx, cy, cz);
 
             if (dist < minDistance) {
                 secondMinDistance = minDistance;
@@ -51,8 +52,8 @@ let genRock: ColorFnBuilder = () => {
 
         brightness -= brightness * (0.1 * Math.pow(Math.random(), 8))
         brightness += brightness * (0.1 * Math.pow(Math.random(), 8))
-        out[i+0] = 255 * brightness
-        out[i+1] = 255 * brightness
+        out[i+0] = 230 * brightness
+        out[i+1] = 200 * brightness
         out[i+2] = 255 * brightness
     }
 }
@@ -114,11 +115,11 @@ let genTex3d = (texIdx: number, getColor: ColorFnBuilder): void => {
         textures[texIdx] = tex
 
         if (DEBUG) {
-            const canvas = document.createElement('canvas');
+            let canvas = document.createElement('canvas');
             canvas.width = k_packedTexWidth;
             canvas.height = k_packedTexWidth;
-            const ctx = canvas.getContext('2d')!;
-            const imageData = ctx.createImageData(k_packedTexWidth, k_packedTexWidth);
+            let ctx = canvas.getContext('2d')!;
+            let imageData = ctx.createImageData(k_packedTexWidth, k_packedTexWidth);
             for (let i = 0; i < ret.length; i++) {
                 imageData.data[i] = ret[i];
             }

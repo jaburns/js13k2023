@@ -1,8 +1,8 @@
 import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert, blit_frag, blit_vert } from "./shaders.gen"
 import { GameMode, GameState, predictShot } from "./state"
-import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3Sub, Vec3, vecLerp } from "./types"
-import { cannonGeo, castleGeo, castleGibs, lastLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
+import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3AddScale, v3Sub, Vec3, vecLerp } from "./types"
+import { cannonGeo, castleGeo, CastleGib, castleGibs, gibCastle, lastLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
 import { bindTextureUniforms } from "./textures"
 import { ModelGeo } from "./csg"
 
@@ -11,8 +11,10 @@ declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
 declare const C2: HTMLCanvasElement
 declare const k_mouseSensitivity: number
-declare const k_aimSteps: number;
+declare const k_aimSteps: number
 declare const k_pixelSize: number
+declare const k_gravity: number
+declare const k_tickMillis: number
 
 let ctx = C2.getContext('2d')!
 let ctxtx = G.createTexture()!
@@ -28,9 +30,6 @@ G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 let blitTriBuffer = G.createBuffer()!
 G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
 G.bufferData(gl.ARRAY_BUFFER, Float32Array.of(-1,-1,1,-1,-1,1, 1,1,-1,1,1,-1), gl.STATIC_DRAW)
-
-
-
 
 G.enable(gl.DEPTH_TEST)
 G.enable(gl.BLEND)
@@ -114,6 +113,9 @@ let oldMode: GameMode
 let modeT = 0
 let uihash: any
 
+let gibbedCastles: number[] = []
+let castleGibStates: CastleGib[] = []
+
 export let resize = () => {
     G.viewport(0, 0, C2.width=CC.width=window.innerWidth/k_pixelSize, C2.height=CC.height=window.innerHeight/k_pixelSize)
     uihash = 9
@@ -178,7 +180,13 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
 
     let castles = worldGetCastles()
     for (let i = 0; i < castles.length; ++i) {
-        if (state.castlesHit.indexOf(i) >= 0) continue
+        if (state.castlesHit.indexOf(i) >= 0) {
+            if (gibbedCastles.indexOf(i) < 0) {
+                gibbedCastles.push(i)
+                castleGibStates.push(...gibCastle(castles[i] as any, state.vel))
+            }
+            continue
+        }
         modelMat = m4Mul(
             m4Mul(m4Translate(v3Add(castles[i] as any, [0,10*Math.sin(modeT/800),0])), m4Scale(0.25)),
             m4Mul(m4RotY(modeT / 1000 + i), m4RotX(0.15))
@@ -190,8 +198,28 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         modelGeoDraw(castleGeo, mainShader)
     }
 
+    for (let gib of castleGibStates) {
+        let grav = k_gravity / k_tickMillis / k_tickMillis;
+        gib.rotation = m4Mul(m4AxisAngle(gib.axis, gib.omega * dt), gib.rotation)
+        gib.vel = v3AddScale(gib.vel, [0,grav,0], dt)
+        gib.pos = v3AddScale(gib.pos, gib.vel, dt)
+        modelMat = m4Mul(
+            m4Mul(m4Translate(gib.pos), m4Scale(0.25)),
+            m4Mul(gib.rotation, m4Translate(gib.offset)),
+        )
+        G.useProgram(mainShader)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+        bindTextureUniforms(mainShader)
+        modelGeoDraw(castleGibs[gib.kind], mainShader)
+    }
+
     if (oldMode != state.mode) {
         oldMode = state.mode
+        if (oldMode == GameMode.FirstAim) {
+            gibbedCastles = []
+            castleGibStates = []
+        }
         modeT = 0
     }
 
@@ -221,9 +249,9 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         G.uniformMatrix4fv(G.getUniformLocation(aimRayShader, 'u_model'), false, m4Ident)
         G.uniformMatrix4fv(G.getUniformLocation(aimRayShader, 'u_vp'), false, vp)
         G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
-        let posLoc = G.getAttribLocation(aimRayShader, 'a_position')
-        G.enableVertexAttribArray(posLoc)
-        G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
+        let pposLoc = G.getAttribLocation(aimRayShader, 'a_position')
+        G.enableVertexAttribArray(pposLoc)
+        G.vertexAttribPointer(pposLoc, 3, gl.FLOAT, false, 0, 0)
         G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, drawRayIndex)
         G.drawElements(gl.LINES, 2 * k_aimSteps, gl.UNSIGNED_SHORT, 0)
 
@@ -264,10 +292,9 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
             ctx.font='bold 32px sans-serif'
             ctx.lineWidth=2
             ctx.textAlign='right'
-
             drawText(state.ammo+" ⚫", C2.width -20, C2.height -25-2*40)
             drawText(`${state.castlesHit.length}/${worldGetCastles().length} 🏰`, C2.width -20, C2.height -25-40)
-            drawText(`${state.level+1}/${lastLevel} ⛳`, C2.width -20, C2.height -25)
+            drawText(`${state.level+1}/${8/*lastLevel*/+1} ⛳`, C2.width -20, C2.height -25)
         }
     }
 
@@ -291,13 +318,12 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     uihash = newhash
 }
 
-
-const drawText = (txt: string, x: number, y: number): void => {
+let drawText = (txt: string, x: number, y: number): void => {
     ctx.fillText(txt, x, y)
     ctx.strokeText(txt, x, y)
 }
 
-const drawBall = (vp: Mat4, shader: WebGLProgram, color: Vec3|0): void => {
+let drawBall = (vp: Mat4, shader: WebGLProgram, color: Vec3|0): void => {
     let modelMat = m4Mul(m4Mul(m4Translate(ballPos), m4Scale(0.2)), ballRot)
     G.useProgram(shader)
     G.uniformMatrix4fv(G.getUniformLocation(shader, 'u_model'), false, modelMat)
