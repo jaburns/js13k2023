@@ -10,7 +10,7 @@ uniform sampler2D u_tex[k_numTextures];
 uniform vec3 u_ballPos;
 
 void main() {
-    vec3 c3d = floor(fract(v_position * 0.005) * 64.0);
+    vec3 c3d = floor(fract(v_position * 0.005 + 0.01) * 64.0);
     vec2 uv  = (c3d.xy + vec2(mod(c3d.z, 8.0), floor(c3d.z / 8.0)) * 64.0 + vec2(0.5)) / 512.0;
 
     vec4 samp;

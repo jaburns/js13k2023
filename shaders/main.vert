@@ -11,7 +11,7 @@ varying float v_tag;
 
 void main() {
     v_position = a_position;
-    v_normal = (u_model * vec4(a_normal, 0)).xyz;
+    v_normal = normalize((u_model * vec4(a_normal, 0)).xyz);
     v_tag = a_tag;
     gl_Position = u_vp * u_model * vec4(a_position, 1);
 }

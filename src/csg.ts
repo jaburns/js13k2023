@@ -245,6 +245,28 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
     }
 }
 
+export let csgSolidOpIntersect = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
+    let a = csgNodeNew(), b = csgNodeNew()
+    csgNodeBuild(a, solidA.polys)
+    csgNodeBuild(b, solidB.polys)
+    csgNodeInvert(a)
+    csgNodeClipTo(b, a)
+    csgNodeInvert(b)
+    csgNodeClipTo(a, b)
+    csgNodeClipTo(b, a)
+    csgNodeBuild(a, csgNodeAllPolygons(b))
+    csgNodeInvert(a)
+    return EDITOR ? {
+        polys: csgNodeAllPolygons(a),
+        lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
+                .concat((solidB.lineViewPolys || solidB.polys).map(x => ((x as any).tag = 1,x))),
+        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
+    } : {
+        polys: csgNodeAllPolygons(a),
+        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
+    }
+}
+
 let rot: Mat4
 let accVertices: CsgVertex[]
 let sphereVertexCenter: Vec3

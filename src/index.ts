@@ -1,15 +1,13 @@
 import { editorInit, editorFrame } from './editor'
 import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
-import { renderGame } from './render'
+import { renderGame, resize } from './render'
 import { gameStateLerp, gameStateNew, gameStateTick } from './state'
 import { False, True } from './types'
+import {loadLevel} from './world'
 
 declare const CC: HTMLCanvasElement
-declare const C2: HTMLCanvasElement
-declare const G: WebGLRenderingContext
 declare const EDITOR: boolean
 declare const k_tickMillis: number
-declare const k_pixelSize: number
 
 let prevState = gameStateNew()
 let curState = gameStateNew()
@@ -22,10 +20,6 @@ let curState = gameStateNew()
     style.height = '100%'
     style.cursor = 'pointer'
 })
-
-let resize = () => {
-    G.viewport(0, 0, C2.width=CC.width=window.innerWidth/k_pixelSize, C2.height=CC.height=window.innerHeight/k_pixelSize)
-}
 
 let accTime = 0
 let prevNow = 0
@@ -71,4 +65,5 @@ if (EDITOR) {
 window.onresize = resize
 
 resize()
+loadLevel(0)
 frame(0)

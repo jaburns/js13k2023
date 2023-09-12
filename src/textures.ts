@@ -104,7 +104,6 @@ let genTex3d = (texIdx: number, getColor: ColorFnBuilder): void => {
     new Promise(resolve => {
         worker.onmessage = e => resolve(e.data)
     }).then((ret: Uint8Array) => {
-        console.log(ret)
         let tex = G.createTexture()!
         G.bindTexture(gl.TEXTURE_2D, tex)
         G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, k_packedTexWidth, k_packedTexWidth, 0, gl.RGBA, gl.UNSIGNED_BYTE, ret)

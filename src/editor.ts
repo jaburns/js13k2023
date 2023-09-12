@@ -4,12 +4,14 @@ import { InputsFrame, inputsNew } from "./inputs"
 import { modelGeoDraw, shaderCompile } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag, debugRay_vert, debugRay_frag } from "./shaders.gen"
 import {bindTextureUniforms} from "./textures"
-import { m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
-import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
+import { m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
+import { castleGeo, evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 
 declare const CC: HTMLCanvasElement
 declare const G: WebGLRenderingContext
 declare const k_tickMillis: number
+
+const SPEED = 2
 
 let yaw: number
 let pitch: number
@@ -36,6 +38,7 @@ let sourceElem: HTMLTextAreaElement
 let sourceList: [number,string[]][]
 let undoStack: [number,string[]][][]
 let redoStack: [number,string[]][][]
+let castles: number[][] = []
 
 export let editorInit = (): void => {
     yaw = 0
@@ -132,7 +135,9 @@ let rebuildSourceText = (): void => {
 }
 
 let rebuildScene = (): void => {
-    navigator.clipboard.writeText(evaluateNewWorld(sourceList))
+    let [js, cc] = evaluateNewWorld(sourceList)
+    navigator.clipboard.writeText(js)
+    castles = cc
 }
 
 let update = (dt: number, inputs: InputsFrame): void => {
@@ -211,22 +216,22 @@ let update = (dt: number, inputs: InputsFrame): void => {
     let fallVec = v3Cross(lookVec, strafeVec)
     let moveVec: Vec3 = [0,0,0]
     if (inputs.keysDown['W']) {
-        moveVec = v3AddScale(moveVec, lookVec, 0.1*dt)
+        moveVec = v3AddScale(moveVec, lookVec, SPEED*dt)
     }
     if (inputs.keysDown['S']) {
-        moveVec = v3AddScale(moveVec, lookVec, -0.1*dt)
+        moveVec = v3AddScale(moveVec, lookVec, -SPEED*dt)
     }
     if (inputs.keysDown['D']) {
-        moveVec = v3AddScale(moveVec, strafeVec, 0.1*dt)
+        moveVec = v3AddScale(moveVec, strafeVec, SPEED*dt)
     }
     if (inputs.keysDown['A']) {
-        moveVec = v3AddScale(moveVec, strafeVec, -0.1*dt)
+        moveVec = v3AddScale(moveVec, strafeVec, -SPEED*dt)
     }
     if (inputs.keysDown['f']) { // Shi f t
-        moveVec = v3AddScale(moveVec, fallVec, 0.1*dt)
+        moveVec = v3AddScale(moveVec, fallVec, SPEED*dt)
     }
     if (inputs.keysDown['c']) { // Spa c e
-        moveVec = v3AddScale(moveVec, fallVec, -0.1*dt)
+        moveVec = v3AddScale(moveVec, fallVec, -SPEED*dt)
     }
     if (inputs.keysDown['L'] && !lastInputs.keysDown['L']) {
         showLines = !showLines
@@ -289,6 +294,15 @@ let render = (): void => {
             modelGeoDraw(handleGeo, debugGeoShader)
         }
         G.enable(gl.DEPTH_TEST)
+    }
+
+    for (let pos of castles) {
+        let modelMat = m4Mul(m4Translate(pos as any), m4Scale(0.25))
+        G.useProgram(mainShader)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+        bindTextureUniforms(mainShader)
+        modelGeoDraw(castleGeo, mainShader)
     }
 
     if (showLines) {

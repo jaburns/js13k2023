@@ -2,7 +2,7 @@ import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert, blit_frag, blit_vert } from "./shaders.gen"
 import { GameMode, GameState, predictShot } from "./state"
 import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3Sub, Vec3, vecLerp } from "./types"
-import { worldGetCannon, worldGetCastle, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
+import { cannonGeo, castleGeo, castleGibs, lastLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
 import { bindTextureUniforms } from "./textures"
 import { ModelGeo } from "./csg"
 
@@ -12,6 +12,7 @@ declare const CC: HTMLCanvasElement
 declare const C2: HTMLCanvasElement
 declare const k_mouseSensitivity: number
 declare const k_aimSteps: number;
+declare const k_pixelSize: number
 
 let ctx = C2.getContext('2d')!
 let ctxtx = G.createTexture()!
@@ -111,9 +112,15 @@ let ballPos: Vec3 = [0,0,0]
 
 let oldMode: GameMode
 let modeT = 0
+let uihash: any
+
+export let resize = () => {
+    G.viewport(0, 0, C2.width=CC.width=window.innerWidth/k_pixelSize, C2.height=CC.height=window.innerHeight/k_pixelSize)
+    uihash = 9
+}
 
 export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, state: GameState, dt: number): void => {
-    if (state.mode == GameMode.Dead) {
+    if (state.mode == GameMode.Dead || state.mode == GameMode.Win) {
         earlyInputs.mouseAccX = earlyInputs.mouseAccY = 0
     }
 
@@ -134,7 +141,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     }
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch)), [0,0,-state.camBack])
-    camOff = vecLerp(camOff, state.mode == GameMode.Ball || state.mode == GameMode.Dead ? [0,20,0] : [-50,60,0], 0.01 * dt)
+    camOff = vecLerp(camOff, state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win ? [0,20,0] : [-50,60,0], 0.01 * dt)
     ballRot = m4Mul(m4AxisAngle(state.rotAxis, state.rotSpeed * dt), ballRot)
     let lookMat = m4Mul(m4RotX(mainPitch), m4RotY(-mainYaw))
     let fwdLookMat = m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch))
@@ -148,7 +155,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     let vp = m4Mul(projectionMat, viewMat)
     let drawCannon = 0, modelMat
 
-    if (state.mode == GameMode.Ball || state.mode == GameMode.Dead) {
+    if (state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win) {
         ballPos = state.pos
         drawCannon = (state.mode == GameMode.Ball && modeT < 100) as any
         drawBall(vp, mainShader, 0)
@@ -166,16 +173,21 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
         bindTextureUniforms(mainShader)
-        modelGeoDraw(worldGetCannon(), mainShader)
+        modelGeoDraw(cannonGeo, mainShader)
     }
 
-    {
-        modelMat = m4Scale(0.25)
+    let castles = worldGetCastles()
+    for (let i = 0; i < castles.length; ++i) {
+        if (state.castlesHit.indexOf(i) >= 0) continue
+        modelMat = m4Mul(
+            m4Mul(m4Translate(v3Add(castles[i] as any, [0,10*Math.sin(modeT/800),0])), m4Scale(0.25)),
+            m4Mul(m4RotY(modeT / 1000 + i), m4RotX(0.15))
+        )
         G.useProgram(mainShader)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
         bindTextureUniforms(mainShader)
-        modelGeoDraw(worldGetCastle(), mainShader)
+        modelGeoDraw(castleGeo, mainShader)
     }
 
     if (oldMode != state.mode) {
@@ -195,7 +207,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.disable(gl.CULL_FACE)
     G.useProgram(skyShader)
     G.uniformMatrix4fv(G.getUniformLocation(skyShader, 'u_mvp'), false, m4Mul(projectionMat, lookMat))
-    modelGeoDraw(worldGetSky(), skyShader)
+    modelGeoDraw(skyboxGeo, skyShader)
     G.enable(gl.CULL_FACE)
 
     // Aim line
@@ -218,45 +230,45 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         drawBall(vp, aimRayShader, [0,1,.1])
     }
 
-    // Fade level
+    // UI draw
     if (state.mode == GameMode.Menu || state.mode == GameMode.FirstAim) {
         fade = Math.min((modeT/1000)**2,1)
-    } else if (state.mode == GameMode.Dead) {
+    } else if (state.mode == GameMode.Dead || state.mode == GameMode.Win) {
         fade = 1-Math.min((modeT/1000)**2,1)
     } else {
         fade = 1
     }
+    let newhash = state.mode == GameMode.Menu ? 1
+        : state.mode == GameMode.Dead ? 2
+        : state.mode == GameMode.Win ? 3
+        : `${state.castlesHit.length}.${state.ammo}`
 
-    // UI draw
-    // TODO Need to only redraw UI when it changes, really slow to not do it in firefox linux
-    ctx.clearRect(0, 0, C2.width, C2.height)
-    ctx.strokeStyle='#e56b70'
-    ctx.fillStyle='#ffdb63'
-    ctx.textAlign = 'center'
-    if (state.mode == GameMode.Menu) {
-        ctx.font='bold 64px sans-serif'
-        ctx.lineWidth=3
-        drawText("CANNONBALF ", C2.width/2, 200)
-        ctx.font='bold 16px sans-serif'
-        ctx.lineWidth=.5
-        drawText("CLICK TO USE CANNON", C2.width/2, C2.height - 100)
-        drawText("RIGHT CLICK TO LOCK CAMERA", C2.width/2, C2.height - 100 + 20)
-    } else if (state.mode == GameMode.Dead) {
-        ctx.font='bold 32px sans-serif'
-        ctx.lineWidth=2
-        drawText("SORRY, TRY AGAIN!", C2.width/2, C2.height/2)
-    } else {
-        ctx.font='bold 32px sans-serif'
-        ctx.lineWidth=2
-        ctx.textAlign='left'
+    if (newhash != uihash) {
+        ctx.clearRect(0, 0, C2.width, C2.height)
+        ctx.strokeStyle='#e56b70'
+        ctx.fillStyle='#ffdb63'
+        ctx.textAlign = 'center'
+        if (state.mode == GameMode.Menu) {
+            ctx.font='bold 64px sans-serif'
+            ctx.lineWidth=3
+            drawText("CANNONBALF", C2.width/2, 200)
+            ctx.font='bold 16px sans-serif'
+            ctx.lineWidth=.5
+            drawText("CLICK TO USE CANNON", C2.width/2, C2.height - 100)
+            drawText("RIGHT CLICK TO LOCK CAMERA", C2.width/2, C2.height - 100 + 20)
+        } else if (state.mode == GameMode.Dead || state.mode == GameMode.Win) {
+            ctx.font='bold 32px sans-serif'
+            ctx.lineWidth=2
+            drawText(state.mode == GameMode.Dead ? "SORRY, TRY AGAIN!" : state.level < lastLevel ? "NICE!" : "THANKS FOR PLAYING!", C2.width/2, C2.height/2)
+        } else {
+            ctx.font='bold 32px sans-serif'
+            ctx.lineWidth=2
+            ctx.textAlign='right'
 
-        drawText("🏰⚫ ⨯ "+state.ammo, 20, C2.height -25)
-        ctx.textAlign='right'
-        drawText(state.hole+"/18 ⛳", C2.width -20, C2.height -25)
-    }
-    if (fade < 1) {
-        ctx.fillStyle = `rgba(0,0,0,${1-fade})`
-        ctx.fillRect(0,0,C2.width,C2.height)
+            drawText(state.ammo+" ⚫", C2.width -20, C2.height -25-2*40)
+            drawText(`${state.castlesHit.length}/${worldGetCastles().length} 🏰`, C2.width -20, C2.height -25-40)
+            drawText(`${state.level+1}/${lastLevel} ⛳`, C2.width -20, C2.height -25)
+        }
     }
 
     // UI blit
@@ -264,15 +276,19 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.useProgram(blitShader)
     G.activeTexture(gl.TEXTURE0)
     G.bindTexture(gl.TEXTURE_2D, ctxtx)
-    G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, C2)
+    if (newhash != uihash) {
+        G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, C2)
+    }
     G.uniform1i(G.getUniformLocation(blitShader, 'u_tex'), 0)
-    G.uniform2f(G.getUniformLocation(blitShader, 'u_size'), C2.width, C2.height)
+    G.uniform4f(G.getUniformLocation(blitShader, 'u_info'), C2.width, C2.height, fade, ~~(state.mode == GameMode.Win && state.level == lastLevel))
     let posLoc = G.getAttribLocation(blitShader, 'a_position')
     G.bindBuffer(gl.ARRAY_BUFFER, blitTriBuffer)
     G.enableVertexAttribArray(posLoc)
     G.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0)
     G.drawArrays(gl.TRIANGLES, 0, 6)
     G.enable(gl.DEPTH_TEST)
+
+    uihash = newhash
 }
 
 
@@ -291,5 +307,5 @@ const drawBall = (vp: Mat4, shader: WebGLProgram, color: Vec3|0): void => {
     } else {
         bindTextureUniforms(shader)
     }
-    modelGeoDraw(worldGetPlayer(), shader)
+    modelGeoDraw(playerGeo, shader)
 }
