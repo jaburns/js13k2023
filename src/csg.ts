@@ -41,13 +41,13 @@ let csgPolygonNew = (verts: CsgVertex[], tag: number): CsgPolygon => (
     }
 )
 
-let csgPlaneFlip = (self: CsgPlane): CsgPlane => ({
-    normal: v3Negate(self.normal),
-    w: -self.w,
+let csgPlaneFlip = (me: CsgPlane): CsgPlane => ({
+    normal: v3Negate(me.normal),
+    w: -me.w,
 })
 
 let csgPlaneSplitPolygon = (
-    self: CsgPlane,
+    me: CsgPlane,
     polygon: CsgPolygon,
     coplanarFront: CsgPolygon[],
     coplanarBackk: CsgPolygon[],
@@ -57,7 +57,7 @@ let csgPlaneSplitPolygon = (
     let polygonType = 0
 
     let types: PolygonType[] = polygon.vertices.map(vert => {
-        let t = v3Dot(self.normal, vert.pos) - self.w
+        let t = v3Dot(me.normal, vert.pos) - me.w
         let typ =
             t < -CSG_PLANE_EPSILON ? PolygonType.BACKK
             : t > CSG_PLANE_EPSILON ? PolygonType.FRONT
@@ -67,7 +67,7 @@ let csgPlaneSplitPolygon = (
     })
 
     if (polygonType == PolygonType.COPLANAR) {
-        (v3Dot(self.normal, polygon.plane.normal) > 0 ? coplanarFront : coplanarBackk).push(polygon)
+        (v3Dot(me.normal, polygon.plane.normal) > 0 ? coplanarFront : coplanarBackk).push(polygon)
     }
     if (polygonType == PolygonType.FRONT) {
         front.push(polygon)
@@ -84,7 +84,7 @@ let csgPlaneSplitPolygon = (
             if (ti != PolygonType.BACKK) f.push(vi)
             if (ti != PolygonType.FRONT) b.push(vi)
             if ((ti | tj) == PolygonType.SPANNING) {
-                let t = (self.w - v3Dot(self.normal, vi.pos)) / v3Dot(self.normal, v3Sub(vj.pos, vi.pos))
+                let t = (me.w - v3Dot(me.normal, vi.pos)) / v3Dot(me.normal, v3Sub(vj.pos, vi.pos))
                 let v: CsgVertex = {
                     pos: vecLerp(vi.pos, vj.pos, t),
                     normal: v3Normalize(vecLerp(vi.normal, vj.normal, t)),
@@ -114,77 +114,77 @@ let csgNodeNew = (): CsgNode => ({
     polygons: [],
 })
 
-let csgNodeInvert = (self: CsgNode): void => {
-    self.polygons = self.polygons.map(poly => ({
+let csgNodeInvert = (me: CsgNode): void => {
+    me.polygons = me.polygons.map(poly => ({
         vertices: poly.vertices.map(v => ({ pos: v.pos, normal: v3Negate(v.normal) })).reverse(),
         plane: csgPlaneFlip(poly.plane),
         tag: poly.tag,
     }))
-    self.plane = csgPlaneFlip(self.plane as CsgPlane) // assume not null
-    if (self.front) csgNodeInvert(self.front)
-    if (self.backk) csgNodeInvert(self.backk)
-    let swap = self.front
-    self.front = self.backk
-    self.backk = swap
+    me.plane = csgPlaneFlip(me.plane as CsgPlane) // assume not null
+    if (me.front) csgNodeInvert(me.front)
+    if (me.backk) csgNodeInvert(me.backk)
+    let swap = me.front
+    me.front = me.backk
+    me.backk = swap
 }
 
-let csgNodeClipPolygons = (self: CsgNode, polygons: CsgPolygon[]): CsgPolygon[] => {
-    if (!self.plane) {
-        return [...self.polygons]
+let csgNodeClipPolygons = (me: CsgNode, polygons: CsgPolygon[]): CsgPolygon[] => {
+    if (!me.plane) {
+        return [...me.polygons]
     }
 
     let front: CsgPolygon[] = []
     let backk: CsgPolygon[] = []
 
     polygons.map(poly =>
-        csgPlaneSplitPolygon(self.plane as CsgPlane, poly, front, backk, front, backk)
+        csgPlaneSplitPolygon(me.plane as CsgPlane, poly, front, backk, front, backk)
     )
 
-    if (self.front) {
-        front = csgNodeClipPolygons(self.front, front)
+    if (me.front) {
+        front = csgNodeClipPolygons(me.front, front)
     }
-    backk = self.backk
-        ? csgNodeClipPolygons(self.backk, backk)
+    backk = me.backk
+        ? csgNodeClipPolygons(me.backk, backk)
         : []
 
     return [...front, ...backk]
 }
 
-let csgNodeClipTo = (self: CsgNode, bsp: CsgNode): void => {
-    self.polygons = csgNodeClipPolygons(bsp, self.polygons)
-    if (self.front) csgNodeClipTo(self.front, bsp)
-    if (self.backk) csgNodeClipTo(self.backk, bsp)
+let csgNodeClipTo = (me: CsgNode, bsp: CsgNode): void => {
+    me.polygons = csgNodeClipPolygons(bsp, me.polygons)
+    if (me.front) csgNodeClipTo(me.front, bsp)
+    if (me.backk) csgNodeClipTo(me.backk, bsp)
 }
 
-let csgNodeAllPolygons = (self: CsgNode): CsgPolygon[] => [
-    ...self.polygons,
-    ...(self.front ? csgNodeAllPolygons(self.front) : []),
-    ...(self.backk ? csgNodeAllPolygons(self.backk) : []),
+let csgNodeAllPolygons = (me: CsgNode): CsgPolygon[] => [
+    ...me.polygons,
+    ...(me.front ? csgNodeAllPolygons(me.front) : []),
+    ...(me.backk ? csgNodeAllPolygons(me.backk) : []),
 ]
 
-let csgNodeBuild = (self: CsgNode, polygons: CsgPolygon[]): void => {
+let csgNodeBuild = (me: CsgNode, polygons: CsgPolygon[]): void => {
     if (polygons.length) {
-        if (!self.plane) {
-            self.plane = polygons[0].plane
+        if (!me.plane) {
+            me.plane = polygons[0].plane
         }
 
         let front: CsgPolygon[] = []
         let backk: CsgPolygon[] = []
 
         polygons.map(poly =>
-            csgPlaneSplitPolygon(self.plane as CsgPlane, poly, self.polygons, self.polygons, front, backk)
+            csgPlaneSplitPolygon(me.plane as CsgPlane, poly, me.polygons, me.polygons, front, backk)
         )
         if (front.length) {
-            if (!self.front) {
-                self.front = csgNodeNew()
+            if (!me.front) {
+                me.front = csgNodeNew()
             }
-            csgNodeBuild(self.front, front)
+            csgNodeBuild(me.front, front)
         }
         if (backk.length) {
-            if (!self.backk) {
-                self.backk = csgNodeNew()
+            if (!me.backk) {
+                me.backk = csgNodeNew()
             }
-            csgNodeBuild(self.backk, backk)
+            csgNodeBuild(me.backk, backk)
         }
     }
 }
@@ -482,7 +482,7 @@ export type ModelGeo = {
     lines?: ModelLines,
 }
 
-export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
+export let csgSolidBake = (me: CsgSolid): [ModelGeo, SdfFunction] => {
     let vertexBuf: number[] = []
     let normalBuf: number[] = []
     let tagBuf: number[] = []
@@ -494,13 +494,13 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
 
     let innerSdfFunc = new Function(
         `${V_POSITION},${F_BOX},${F_LINE}`,
-        'return ' + self.sdf
+        'return ' + me.sdf
     )
     let sdfFunc = (x: Vec3): number => innerSdfFunc(
         x, sdfBox, sdfLine
     )
 
-    self.polys.map(poly => {
+    me.polys.map(poly => {
         let startIdx = vertexBuf.length / 3
         poly.vertices.map(x => (
             vertexBuf.push(...x.pos),
@@ -513,7 +513,7 @@ export let csgSolidBake = (self: CsgSolid): [ModelGeo, SdfFunction] => {
     })
 
     if (EDITOR) {
-        let showPolys = (window as any).editorShowLinesKind ? self.polys : (self.lineViewPolys || self.polys)
+        let showPolys = (window as any).editorShowLinesKind ? me.polys : (me.lineViewPolys || me.polys)
         showPolys.map(poly => {
             let startIdx = linesVertexBuf.length / 3
             poly.vertices.map(x => (

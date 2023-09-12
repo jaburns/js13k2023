@@ -26,6 +26,7 @@ export let inputsNew = (): InputsFrame => (EDITOR ? {
 
 let frame: InputsFrame = inputsNew()
 
+export let clickedIn: {a?:number} = {};
 let lastMouseDx = 0
 let lastMouseDy = 0
 
@@ -43,6 +44,7 @@ document.onmousemove = (e: MouseEvent): void => {
 
 document.onmousedown = (e: MouseEvent) => {
     if (!EDITOR && document.pointerLockElement !== CC) {
+        clickedIn.a=1
         CC.requestPointerLock()
     } else {
         frame.keysDown[e.button] = True
@@ -70,15 +72,15 @@ export let inputsConsumeFrame = (): InputsFrame => {
     return EDITOR || document.pointerLockElement == CC ? outFrame : inputsNew()
 }
 
-export let inputsAdd = (self: InputsFrame, other: InputsFrame): void => {
+export let inputsAdd = (me: InputsFrame, other: InputsFrame): void => {
     for (let k in other.keysDown) {
-        (self.keysDown as any)[k] |= (other.keysDown as any)[k]
+        (me.keysDown as any)[k] |= (other.keysDown as any)[k]
     }
-    self.mouseAccX += other.mouseAccX
-    self.mouseAccY += other.mouseAccY
+    me.mouseAccX += other.mouseAccX
+    me.mouseAccY += other.mouseAccY
     if (EDITOR) {
-        self.mousePosX = other.mousePosX
-        self.mousePosY = other.mousePosY
+        me.mousePosX = other.mousePosX
+        me.mousePosY = other.mousePosY
     }
 }
 

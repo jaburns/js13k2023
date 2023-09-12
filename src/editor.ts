@@ -1,8 +1,9 @@
 import { csgSolidBake, csgSolidBox, ModelGeo } from "./csg"
 import * as gl from './glConsts'
 import { InputsFrame, inputsNew } from "./inputs"
-import { modelGeoDraw, shaderCompile, textures } from "./render"
+import { modelGeoDraw, shaderCompile } from "./render"
 import { debugLines_frag, debugLines_vert, main_frag, main_vert, debugGeo_frag, debugRay_vert, debugRay_frag } from "./shaders.gen"
+import {bindTextureUniforms} from "./textures"
 import { m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Translate, Mat4, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Sub, Vec3 } from "./types"
 import { evaluateNewWorld, worldGetGeo, worldSourceList } from "./world"
 
@@ -260,11 +261,7 @@ let render = (): void => {
     G.useProgram(mainShader)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, m4Ident)
-    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl.TEXTURE0 + i),
-        G.bindTexture(gl.TEXTURE_2D, tex),
-        i
-    )))
+    bindTextureUniforms(mainShader)
     modelGeoDraw(worldGetGeo(), mainShader)
 
     pickedIndex = -1
@@ -308,19 +305,19 @@ let render = (): void => {
     G.enable(gl.DEPTH_TEST)
 }
 
-let modelGeoDrawLines = (self: ModelGeo, shaderProg: WebGLProgram): void => {
-    G.bindBuffer(gl.ARRAY_BUFFER, self.lines!.vertexBuffer)
+let modelGeoDrawLines = (me: ModelGeo, shaderProg: WebGLProgram): void => {
+    G.bindBuffer(gl.ARRAY_BUFFER, me.lines!.vertexBuffer)
     let posLoc = G.getAttribLocation(shaderProg, 'a_position')
     G.enableVertexAttribArray(posLoc)
     G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl.ARRAY_BUFFER, self.lines!.tagBuffer)
+    G.bindBuffer(gl.ARRAY_BUFFER, me.lines!.tagBuffer)
     posLoc = G.getAttribLocation(shaderProg, 'a_tag')
     G.enableVertexAttribArray(posLoc)
     G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.lines!.indexBuffer)
-    G.drawElements(gl.LINES, self.lines!.indexBufferLen, gl.UNSIGNED_SHORT, 0)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, me.lines!.indexBuffer)
+    G.drawElements(gl.LINES, me.lines!.indexBufferLen, gl.UNSIGNED_SHORT, 0)
 }
 
 let drawRayIndex: WebGLBuffer;

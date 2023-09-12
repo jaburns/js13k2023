@@ -2,8 +2,8 @@ import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert, blit_frag, blit_vert } from "./shaders.gen"
 import { GameMode, GameState, predictShot } from "./state"
 import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3Sub, Vec3, vecLerp } from "./types"
-import { worldGetCannon, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
-import { generatedTextures } from "./textures"
+import { worldGetCannon, worldGetCastle, worldGetGeo, worldGetPlayer, worldGetSky } from "./world"
+import { bindTextureUniforms } from "./textures"
 import { ModelGeo } from "./csg"
 
 declare const DEBUG: boolean
@@ -11,22 +11,7 @@ declare const G: WebGLRenderingContext
 declare const CC: HTMLCanvasElement
 declare const C2: HTMLCanvasElement
 declare const k_mouseSensitivity: number
-declare const k_packedTexWidth: number
 declare const k_aimSteps: number;
-
-export let textures: WebGLTexture[] = generatedTextures.map(pixels => {
-    let tex = G.createTexture()!
-    G.bindTexture(gl.TEXTURE_2D, tex)
-    G.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, k_packedTexWidth, k_packedTexWidth, 0, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
-    G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
-    return tex
-})
-
-
-
 
 let ctx = C2.getContext('2d')!
 let ctxtx = G.createTexture()!
@@ -89,26 +74,26 @@ let skyShader = shaderCompile(sky_vert, sky_frag)
 let aimRayShader = shaderCompile(aimRay_vert, aimRay_frag)
 let blitShader = shaderCompile(blit_vert, blit_frag)
 
-export let modelGeoDraw = (self: ModelGeo, shaderProg: WebGLProgram): void => {
-    G.bindBuffer(gl.ARRAY_BUFFER, self.vertexBuffer)
+export let modelGeoDraw = (me: ModelGeo, shaderProg: WebGLProgram): void => {
+    G.bindBuffer(gl.ARRAY_BUFFER, me.vertexBuffer)
     let posLoc = G.getAttribLocation(shaderProg, 'a_position')
     G.enableVertexAttribArray(posLoc)
     G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-    G.bindBuffer(gl.ARRAY_BUFFER, self.normalBuffer)
+    G.bindBuffer(gl.ARRAY_BUFFER, me.normalBuffer)
     posLoc = G.getAttribLocation(shaderProg, 'a_normal')
     if (posLoc >= 0) {
         G.enableVertexAttribArray(posLoc)
         G.vertexAttribPointer(posLoc, 3, gl.FLOAT, false, 0, 0)
 
-        G.bindBuffer(gl.ARRAY_BUFFER, self.tagBuffer)
+        G.bindBuffer(gl.ARRAY_BUFFER, me.tagBuffer)
         posLoc = G.getAttribLocation(shaderProg, 'a_tag')
         G.enableVertexAttribArray(posLoc)
         G.vertexAttribPointer(posLoc, 1, gl.FLOAT, false, 0, 0)
     }
 
-    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, self.indexBuffer)
-    G.drawElements(gl.TRIANGLES, self.indexBufferLen, gl.UNSIGNED_SHORT, 0)
+    G.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, me.indexBuffer)
+    G.drawElements(gl.TRIANGLES, me.indexBufferLen, gl.UNSIGNED_SHORT, 0)
 }
 
 let ballRot: Mat4 = m4Ident
@@ -161,11 +146,11 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         10000
     )
     let vp = m4Mul(projectionMat, viewMat)
-    let drawCannon, modelMat
+    let drawCannon = 0, modelMat
 
     if (state.mode == GameMode.Ball || state.mode == GameMode.Dead) {
         ballPos = state.pos
-        drawCannon = modeT < 100
+        drawCannon = (state.mode == GameMode.Ball && modeT < 100) as any
         drawBall(vp, mainShader, 0)
     }
     if (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) {
@@ -180,12 +165,17 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         G.useProgram(mainShader)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
-        G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-            G.activeTexture(gl.TEXTURE0 + i),
-            G.bindTexture(gl.TEXTURE_2D, tex),
-            i
-        )))
+        bindTextureUniforms(mainShader)
         modelGeoDraw(worldGetCannon(), mainShader)
+    }
+
+    {
+        modelMat = m4Scale(0.25)
+        G.useProgram(mainShader)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+        bindTextureUniforms(mainShader)
+        modelGeoDraw(worldGetCastle(), mainShader)
     }
 
     if (oldMode != state.mode) {
@@ -198,11 +188,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, m4Ident)
     G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
     G.uniform3fv(G.getUniformLocation(mainShader, 'u_ballPos'), state.pos)
-    G.uniform1iv(G.getUniformLocation(mainShader, 'u_tex'), textures.map((tex, i) => (
-        G.activeTexture(gl.TEXTURE0 + i),
-        G.bindTexture(gl.TEXTURE_2D, tex),
-        i
-    )))
+    bindTextureUniforms(mainShader)
     modelGeoDraw(worldGetGeo(), mainShader)
 
     // Skybox
@@ -242,6 +228,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     }
 
     // UI draw
+    // TODO Need to only redraw UI when it changes, really slow to not do it in firefox linux
     ctx.clearRect(0, 0, C2.width, C2.height)
     ctx.strokeStyle='#e56b70'
     ctx.fillStyle='#ffdb63'
@@ -262,9 +249,10 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         ctx.font='bold 32px sans-serif'
         ctx.lineWidth=2
         ctx.textAlign='left'
-        drawText("⚫ ⨯ "+state.ammo, 20, C2.height -25)
+
+        drawText("🏰⚫ ⨯ "+state.ammo, 20, C2.height -25)
         ctx.textAlign='right'
-        drawText(18+"/18 ⛳", C2.width -20, C2.height -25)
+        drawText(state.hole+"/18 ⛳", C2.width -20, C2.height -25)
     }
     if (fade < 1) {
         ctx.fillStyle = `rgba(0,0,0,${1-fade})`
@@ -301,11 +289,7 @@ const drawBall = (vp: Mat4, shader: WebGLProgram, color: Vec3|0): void => {
     if (shader == aimRayShader) {
         G.uniform3fv(G.getUniformLocation(shader, 'u_color'), color as any)
     } else {
-        G.uniform1iv(G.getUniformLocation(shader, 'u_tex'), textures.map((tex, i) => (
-            G.activeTexture(gl.TEXTURE0 + i),
-            G.bindTexture(gl.TEXTURE_2D, tex),
-            i
-        )))
+        bindTextureUniforms(shader)
     }
     modelGeoDraw(worldGetPlayer(), shader)
 }

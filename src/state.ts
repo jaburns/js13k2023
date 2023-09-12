@@ -1,5 +1,5 @@
-import { InputsFrame } from "./inputs"
-import { Bool, False, lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, True, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Reflect, Vec3, vecLerp } from "./types"
+import { clickedIn, InputsFrame } from "./inputs"
+import { Bool, False, lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, v3Add, v3AddScale, v3Cross, v3Dot, v3Length, v3Negate, v3Normalize, v3Reflect, Vec3, vecLerp } from "./types"
 import { worldNearestSurfacePoint, worldRaycast } from "./world";
 import { sndOllie, zzfxP } from "./zzfx";
 
@@ -29,6 +29,7 @@ export type GameState = {
     rotAxis: Vec3,
     camBack: number,
     ammo: number,
+    hole: number,
     modeTick: number,
 }
 
@@ -36,7 +37,7 @@ export let gameStateNew = (): GameState => ({
     mode: GameMode.Menu,
     holdingMouse: False,
     lockView: False,
-    yaw: 0,
+    yaw: Math.PI,
     pitch: 0,
     pos: [0,0,0],
     vel: [0,0,0],
@@ -44,6 +45,7 @@ export let gameStateNew = (): GameState => ({
     rotAxis: [0,0,0],
     camBack: 100,
     ammo: 3,
+    hole: 1,
     modeTick: 0,
 })
 
@@ -59,6 +61,7 @@ export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: n
     rotAxis: b.rotAxis,
     camBack: lerp(a.camBack, b.camBack, t),
     ammo: b.ammo,
+    hole: 1,
     modeTick: b.modeTick,
 })
 
@@ -106,7 +109,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     state.holdingMouse = inputs.keysDown[0]
 
     if (state.mode == GameMode.Menu) {
-        if (click) {
+        if (clickedIn.a) {
             state.mode = GameMode.LaterAim
         }
     } else if (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) {
