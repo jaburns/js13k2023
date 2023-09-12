@@ -2,7 +2,7 @@ import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert, blit_frag, blit_vert } from "./shaders.gen"
 import { GameMode, GameState, predictShot } from "./state"
 import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3AddScale, v3Sub, Vec3, vecLerp } from "./types"
-import { cannonGeo, castleGeo, CastleGib, castleGibs, gibCastle, lastLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
+import { cannonGeo, castleGeo, CastleGib, castleGibs, gibCastle, lastLevel, loadLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
 import { bindTextureUniforms } from "./textures"
 import { ModelGeo } from "./csg"
 
@@ -170,7 +170,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     }
 
     if (drawCannon) {
-        modelMat = m4Mul(m4Translate(cannonPos), m4Mul(m4RotY(lazyYaw), m4RotX(-lazyPitch)))
+        modelMat = m4Mul(m4Mul(m4Translate(cannonPos), m4Mul(m4RotY(lazyYaw), m4RotX(-lazyPitch))), m4Scale(0.12))
         G.useProgram(mainShader)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
@@ -219,6 +219,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         if (oldMode == GameMode.FirstAim) {
             gibbedCastles = []
             castleGibStates = []
+            loadLevel(state.level)
         }
         modeT = 0
     }
@@ -240,7 +241,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
 
     // Aim line
     if ((state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) && drawCannon) {
-        let [predicted, pos] = predictShot(lazyYaw, lazyPitch, state.pos)
+        let [predicted, pos] = predictShot(lazyYaw, lazyPitch, state.pos, state.castlesHit)
         ballPos = pos
         G.bindBuffer(gl.ARRAY_BUFFER, drawRayVertex)
         G.bufferSubData(gl.ARRAY_BUFFER, 0, predicted)

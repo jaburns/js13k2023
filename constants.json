@@ -3,9 +3,11 @@
     "k_pixelSize": 2,
     "k_aimSteps": 150,
     "k_packedTexWidth": 512,
-    "k_numTextures": 4,
+    "k_numTextures": 7,
     "k_ballRadius": 10,
     "k_mouseSensitivity": 0.005,
     "k_gravity": -0.6,
-    "k_power": 40
+    "k_power": 30,
+    "k_castleHitRadSqr": 3600,
+    "k_slowDown": 0.5
 }

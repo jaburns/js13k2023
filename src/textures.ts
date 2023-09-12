@@ -19,7 +19,64 @@ let genGrass: ColorFnBuilder = () => (_x, _y, _z, i, out) => {
 }
 
 
-let genRock: ColorFnBuilder = () => {
+let genBricks: ColorFnBuilder = () => (x, y, z, i, out) => {
+    x += (2*Math.random()-1) / 64
+    y += (2*Math.random()-1) / 64
+    z += (2*Math.random()-1) / 64
+
+    let mortar = 0.05
+    x += 0.03
+    z += 0.03
+    x *= 4
+    z *= 4
+    y *= 8
+    x %= 1
+    z %= 1
+    y %= 1
+    let inner =
+        x > mortar && x < (1-mortar) &&
+        z > mortar && z < (1-mortar) &&
+        y > (2*mortar) && y < (1-2*mortar)
+
+    let brightness = 0.9
+    brightness -= brightness * (0.1 * Math.pow(Math.random(), 8))
+    brightness += brightness * (0.1 * Math.pow(Math.random(), 8))
+
+    if (inner) {
+        out[i+0] = 80 * brightness
+        out[i+1] = 90 * brightness
+        out[i+2] = 100 * brightness
+    } else {
+        out[i+0] = 80 * brightness
+        out[i+1] = 70 * brightness
+        out[i+2] = 60 * brightness
+    }
+}
+
+let genWood: ColorFnBuilder = () => {
+	let noise = (v: number): number => 0.25*(
+        Math.sin(10.*v)
+        +.5*Math.sin(17.*v)
+        +.25*Math.sin(21.*v)
+        +.25*Math.sin(23.*v)
+        +Math.sin(29.*v)
+        +.5*Math.sin(31.*v)
+        +.25*Math.sin(37.*v)
+        +.25*Math.sin(51.*v)
+    )
+
+    return (x, y, z, i, out) => {
+        let darkness = Math.pow(Math.random(),8.0)
+        let b = 0.3 * (noise(5*x) + noise(5 * z) + noise(0.2 * y)) * 0.25 + 0.75
+        b -= 0.05*darkness
+        out[i+0] = 255 * b
+        out[i+1] = 220 * b
+        out[i+2] = 200 * b
+    }
+}
+
+
+let genCobble: ColorFnBuilder = () => {
     let tilingDistance3D = (x1:number, y1:number, z1:number, x2:number, y2:number, z2:number): number => (
         x1 = Math.abs(x1 - x2),
         x1 = Math.min(x1, 1 - x1),
@@ -58,14 +115,6 @@ let genRock: ColorFnBuilder = () => {
     }
 }
 
-let genRock2: ColorFnBuilder = () => (_x, _y, _z, i, out) => {
-    let brightness = Math.pow(Math.random(),4.0)
-    let darkness = Math.pow(Math.random(),4.0)
-    out[i+0] = 128 * (0.6-0.1*brightness + 0.1*darkness)
-    out[i+1] = 255 * (0.6-0.1*brightness + 0.1*darkness)
-    out[i+2] = 255 * (0.6-0.1*brightness + 0.1*darkness)
-}
-
 let genBallTex: ColorFnBuilder = () => (x, y, z, i, out) => {
     let brightness = Math.pow(Math.random(),4.0)
     let darkness = Math.pow(Math.random(),4.0)
@@ -80,6 +129,24 @@ let genBallTex: ColorFnBuilder = () => (x, y, z, i, out) => {
     out[i+0] = t * 100 * (0.6-0.1*brightness + 0.1*darkness)
     out[i+1] = t * 150 * (0.6-0.1*brightness + 0.1*darkness)
     out[i+2] = t * 180 * (0.6-0.1*brightness + 0.1*darkness)
+}
+
+let genCannonTex: ColorFnBuilder = () => (_x, _y, _z, i, out) => {
+    let brightness = Math.pow(Math.random(),4.0)
+    let darkness = Math.pow(Math.random(),4.0)
+    let t = 1
+    out[i+0] = t * 100 * (0.6-0.1*brightness + 0.1*darkness)
+    out[i+1] = t * 150 * (0.6-0.1*brightness + 0.1*darkness)
+    out[i+2] = t * 180 * (0.6-0.1*brightness + 0.1*darkness)
+}
+
+let genCannonTexDark: ColorFnBuilder = () => (_x, _y, _z, i, out) => {
+    let brightness = Math.pow(Math.random(),4.0)
+    let darkness = Math.pow(Math.random(),4.0)
+    let t = 1
+    out[i+0] = 0.5 * t * 100 * (0.6-0.1*brightness + 0.1*darkness)
+    out[i+1] = 0.5 * t * 150 * (0.6-0.1*brightness + 0.1*darkness)
+    out[i+2] = 0.5 * t * 180 * (0.6-0.1*brightness + 0.1*darkness)
 }
 
 let doGen = (fnBuilder: ColorFnBuilder): Uint8Array => {
@@ -142,9 +209,12 @@ G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT)
 G.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT)
 
 genTex3d(0, genGrass)
-genTex3d(1, genRock)
-genTex3d(2, genRock2)
+genTex3d(1, genCobble)
+genTex3d(2, genWood)
 genTex3d(3, genBallTex)
+genTex3d(4, genCannonTex)
+genTex3d(5, genCannonTexDark)
+genTex3d(6, genBricks)
 
 export let bindTextureUniforms = (shader: WebGLProgram): void => {
     G.uniform1iv(G.getUniformLocation(shader, 'u_tex'), textures.map((tex, i) => (

@@ -9,6 +9,8 @@ declare const k_ballRadius: number;
 declare const k_aimSteps: number;
 declare const k_gravity: number;
 declare const k_power: number;
+declare const k_slowDown: number;
+declare const k_castleHitRadSqr: number;
 
 export const enum GameMode {
     Menu,
@@ -73,10 +75,11 @@ export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: n
     level: 0,
 })
 
-export let predictShot = (yaw: number, pitch: number, pos: Vec3): [Float32Array, Vec3] => {
+export let predictShot = (yaw: number, pitch: number, pos: Vec3, castlesHit: number[]): [Float32Array, Vec3] => {
     let lookVec = m4MulPoint(m4Mul(m4RotY(yaw), m4RotX(-pitch)), [0,0,-1])
     let ret = new Float32Array(6 * k_aimSteps)
     let loopout
+    let castles = worldGetCastles()
 
     let vel = v3AddScale([0,0,0], lookVec, k_power)
     for (let i = 0, j = 0; i < k_aimSteps; ++i) {
@@ -86,6 +89,18 @@ export let predictShot = (yaw: number, pitch: number, pos: Vec3): [Float32Array,
         if (!loopout) {
             vel = v3Add(vel, [0,k_gravity,0])
             pos = v3Add(pos, vel)
+
+            let testpos = pos
+            for (let i = 0; i < 2; ++i) {
+                testpos = v3AddScale(testpos, vel, 0.5)
+                for (let i = 0; i < castles.length; ++i) {
+                    if (castlesHit.indexOf(i) >= 0) continue
+                    if (v3Dot2(v3Sub(castles[i] as any, testpos)) < k_castleHitRadSqr) {
+                        loopout = 1
+                    }
+                }
+            }
+
             let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(pos)!
             if (nearDist < k_ballRadius && v3Dot(nearNorm, vel) < 0) {
                 pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
@@ -124,6 +139,23 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
             state.mode = GameMode.LaterAim
         }
     } else if (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) {
+        state.vel = v3AddScale(state.vel, [0,k_gravity,0], k_slowDown)
+
+        let testpos = state.pos
+        for (let i = 0; i < 10; ++i) {
+            testpos = v3AddScale(testpos, state.vel, 0.1)
+            for (let i = 0; i < castles.length; ++i) {
+                if (state.castlesHit.indexOf(i) >= 0) continue
+                if (v3Dot2(v3Sub(castles[i] as any, testpos)) < k_castleHitRadSqr) {
+                    state.castlesHit.push(i)
+                }
+            }
+        }
+        if (state.castlesHit.length == castles.length) {
+            state.modeTick = 0
+            state.mode = GameMode.Win
+        }
+
         if (click && state.ammo > 0) {
             zzfxP(sndOllie)
             state.ammo -= 1
@@ -131,6 +163,15 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
             state.vel = v3AddScale([0,0,0], lookVec, k_power)
             state.rotSpeed = 0
         }
+
+        state.pos = v3AddScale(state.pos, state.vel, k_slowDown)
+
+        let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
+        if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
+            state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
+            state.vel = v3Reflect(state.vel, nearNorm, 0.8, 0.8)
+        }
+
     } else if (state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win) {
         state.vel = v3Add(state.vel, [0,k_gravity,0])
 
@@ -140,7 +181,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
                 testpos = v3AddScale(testpos, state.vel, 0.1)
                 for (let i = 0; i < castles.length; ++i) {
                     if (state.castlesHit.indexOf(i) >= 0) continue
-                    if (v3Dot2(v3Sub(castles[i] as any, testpos)) < 50*50) {
+                    if (v3Dot2(v3Sub(castles[i] as any, testpos)) < k_castleHitRadSqr) {
                         state.castlesHit.push(i)
                     }
                 }
@@ -163,6 +204,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
                         state = gameStateNew()
                         state.mode = GameMode.FirstAim
                         state.level = level
+                        console.log('LEVEL', state.level)
                     }
                 } else {
                     state = gameStateNew()
@@ -175,7 +217,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
         let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
         if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
             state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
-            state.vel = v3Reflect(state.vel, nearNorm, 0.3, 0.995)
+            state.vel = v3Reflect(state.vel, nearNorm, 0.2, 0.998)
             state.rotSpeed = v3Length(state.vel) / k_ballRadius / k_tickMillis
             state.rotAxis = v3Negate(v3Normalize(v3Cross(state.vel, nearNorm)))
         }

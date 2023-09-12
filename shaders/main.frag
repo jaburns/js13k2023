@@ -19,6 +19,9 @@ void main() {
     if (tag == 1) samp = texture2D(u_tex[1], uv);
     if (tag == 2) samp = texture2D(u_tex[2], uv);
     if (tag == 3) samp = texture2D(u_tex[3], uv);
+    if (tag == 4) samp = texture2D(u_tex[4], uv);
+    if (tag == 5) samp = texture2D(u_tex[5], uv);
+    if (tag == 6) samp = texture2D(u_tex[6], uv);
 
     float sundir = dot(v_normal,normalize(vec3(5,1,5)));
 
