@@ -217,6 +217,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     if (oldMode != state.mode) {
         oldMode = state.mode
         if (oldMode == GameMode.FirstAim) {
+            console.log('LOADING', state.level)
             gibbedCastles = []
             castleGibStates = []
             loadLevel(state.level)

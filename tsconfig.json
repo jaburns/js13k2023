@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ESNext",
+    "allowJs": true,
     "noImplicitAny": true,
     "noImplicitReturns": true,
     "noUnusedLocals": false,

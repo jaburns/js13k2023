@@ -1,4 +1,5 @@
 import { Bool, False, True } from "./types"
+import { playMusic } from './soundbox-player.js'
 
 declare const CC: HTMLCanvasElement
 declare const DEBUG: boolean
@@ -45,6 +46,7 @@ document.onmousemove = (e: MouseEvent): void => {
 document.onmousedown = (e: MouseEvent) => {
     if (!EDITOR && document.pointerLockElement !== CC) {
         clickedIn.a=1
+        playMusic()
         CC.requestPointerLock()
     } else {
         frame.keysDown[e.button] = True

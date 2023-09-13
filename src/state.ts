@@ -1,7 +1,7 @@
 import { clickedIn, InputsFrame } from "./inputs"
 import { Bool, False, lerp, m4Mul, m4MulPoint, m4RotX, m4RotY, v3Add, v3AddScale, v3Cross, v3Dot, v3Dot2, v3Length, v3Negate, v3Normalize, v3Reflect, v3Sub, Vec3, vecLerp } from "./types"
 import { lastLevel, worldGetCastles, worldNearestSurfacePoint, worldRaycast } from "./world";
-import { sndOllie, zzfxP } from "./zzfx";
+import { sndCastle, sndGround, sndLose, sndShoot, sndWin, zzfxP } from "./zzfx";
 
 declare const k_mouseSensitivity: number;
 declare const k_tickMillis: number;
@@ -33,10 +33,10 @@ export type GameState = {
     rotAxis: Vec3,
     camBack: number,
     ammo: number,
-    hole: number,
     castlesHit: number[],
     modeTick: number,
     level: number,
+    ungrounded: number,
 }
 
 export let gameStateNew = (): GameState => ({
@@ -51,10 +51,10 @@ export let gameStateNew = (): GameState => ({
     rotAxis: [0,0,0],
     camBack: 100,
     ammo: 3,
-    hole: 1,
     castlesHit: [],
     modeTick: 0,
     level: 0,
+    ungrounded: 0,
 })
 
 export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: number): GameState => ({
@@ -69,10 +69,10 @@ export let gameStateLerp = (a: Readonly<GameState>, b: Readonly<GameState>, t: n
     rotAxis: b.rotAxis,
     camBack: lerp(a.camBack, b.camBack, t),
     ammo: b.ammo,
-    hole: 1,
     castlesHit: b.castlesHit,
     modeTick: b.modeTick,
-    level: 0,
+    level: b.level,
+    ungrounded: b.ungrounded,
 })
 
 export let predictShot = (yaw: number, pitch: number, pos: Vec3, castlesHit: number[]): [Float32Array, Vec3] => {
@@ -118,6 +118,7 @@ export let predictShot = (yaw: number, pitch: number, pos: Vec3, castlesHit: num
 export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame): GameState => {
     let state = gameStateLerp(prevState, prevState, 0)
     state.modeTick++
+    state.ungrounded++
 
     if (state.mode != GameMode.Menu && state.mode != GameMode.Dead && state.mode != GameMode.Win) {
         state.lockView = (inputs.keysDown[2] && (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim)) as any
@@ -136,6 +137,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
 
     if (state.mode == GameMode.Menu) {
         if (clickedIn.a) {
+            zzfxP(sndWin)
             state.mode = GameMode.LaterAim
         }
     } else if (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim) {
@@ -147,6 +149,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
             for (let i = 0; i < castles.length; ++i) {
                 if (state.castlesHit.indexOf(i) >= 0) continue
                 if (v3Dot2(v3Sub(castles[i] as any, testpos)) < k_castleHitRadSqr) {
+                    zzfxP(sndCastle)
                     state.castlesHit.push(i)
                 }
             }
@@ -157,7 +160,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
         }
 
         if (click && state.ammo > 0) {
-            zzfxP(sndOllie)
+            zzfxP(sndShoot)
             state.ammo -= 1
             state.mode = GameMode.Ball
             state.vel = v3AddScale([0,0,0], lookVec, k_power)
@@ -182,6 +185,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
                 for (let i = 0; i < castles.length; ++i) {
                     if (state.castlesHit.indexOf(i) >= 0) continue
                     if (v3Dot2(v3Sub(castles[i] as any, testpos)) < k_castleHitRadSqr) {
+                        zzfxP(sndCastle)
                         state.castlesHit.push(i)
                     }
                 }
@@ -200,15 +204,18 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
             if (state.modeTick > 30) {
                 if (state.mode == GameMode.Win) {
                     if (state.level < lastLevel) {
+                        zzfxP(sndWin)
                         let level = state.level + 1
                         state = gameStateNew()
                         state.mode = GameMode.FirstAim
                         state.level = level
-                        console.log('LEVEL', state.level)
                     }
                 } else {
+                    zzfxP(sndLose)
+                    let level = state.level
                     state = gameStateNew()
                     state.mode = GameMode.FirstAim
+                    state.level = level
                 }
             }
         }
@@ -216,6 +223,10 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
 
         let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
         if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
+            if (state.ungrounded > 10) {
+                zzfxP(sndGround)
+            }
+            state.ungrounded = 0
             state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
             state.vel = v3Reflect(state.vel, nearNorm, 0.2, 0.998)
             state.rotSpeed = v3Length(state.vel) / k_ballRadius / k_tickMillis
