@@ -217,7 +217,6 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     if (oldMode != state.mode) {
         oldMode = state.mode
         if (oldMode == GameMode.FirstAim) {
-            console.log('LOADING', state.level)
             gibbedCastles = []
             castleGibStates = []
             loadLevel(state.level)
@@ -268,10 +267,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     } else {
         fade = 1
     }
-    let newhash = state.mode == GameMode.Menu ? 1
-        : state.mode == GameMode.Dead ? 2
-        : state.mode == GameMode.Win ? 3
-        : `${state.castlesHit.length}.${state.ammo}`
+    let newhash = `${state.castlesHit.length}.${state.ammo}.${state.mode}`
 
     if (newhash != uihash) {
         ctx.clearRect(0, 0, C2.width, C2.height)
@@ -281,7 +277,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         if (state.mode == GameMode.Menu) {
             ctx.font='bold 64px sans-serif'
             ctx.lineWidth=3
-            drawText("CANNONBALF", C2.width/2, 200)
+            drawText("CANNONBOLF", C2.width/2, 200)
             ctx.font='bold 16px sans-serif'
             ctx.lineWidth=.5
             drawText("CLICK TO USE CANNON", C2.width/2, C2.height - 100)
@@ -289,7 +285,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         } else if (state.mode == GameMode.Dead || state.mode == GameMode.Win) {
             ctx.font='bold 32px sans-serif'
             ctx.lineWidth=2
-            drawText(state.mode == GameMode.Dead ? "SORRY, TRY AGAIN!" : state.level < lastLevel ? "NICE!" : "THANKS FOR PLAYING!", C2.width/2, C2.height/2)
+            drawText(state.mode == GameMode.Dead ? "SORRY, TRY AGAIN!" : state.level < lastLevel ? ( state.ammo > 0 ? "BIRDIE!" : "PAR!" ) : "THANKS FOR PLAYING!", C2.width/2, C2.height/2)
         } else {
             ctx.font='bold 32px sans-serif'
             ctx.lineWidth=2
@@ -300,7 +296,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
             ctx.textAlign='center'
             ctx.font='bold 16px sans-serif'
             ctx.lineWidth=.5
-            drawText(hints[state.level], C2.width/2, 25)
+            drawText(hints[state.level], C2.width/2, C2.height - 20)
         }
     }
 

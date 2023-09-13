@@ -165,7 +165,7 @@ const main = () => {
         x = fs.readFileSync('/tmp/bbb.js', 'utf8')
     }
 
-    let html = js => `<canvas id=CC style=image-rendering:pixelated></canvas><canvas id=C2></canvas><script>${js}</script>`
+    let html = js => `<meta charset=utf-8><canvas id=CC style=image-rendering:pixelated></canvas><canvas id=C2></canvas><script>${js}</script>`
 
     fs.writeFileSync('build/index.html', html(x))
     fs.writeFileSync('build/index_no_rr.html', html(noRr))

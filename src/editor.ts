@@ -169,7 +169,7 @@ let update = (dt: number, inputs: InputsFrame): void => {
         yaw %= 2*Math.PI
     }
     if (objectDragging !== false && (inputs.mouseAccX !== 0 || inputs.mouseAccY !== 0)) {
-        let offset = 2
+        let offset = sourceList[objectDragging][1][0] === 'castle' ? 1 : 2
 
         if (inputs.keysDown['E']) {
             offset = 5
@@ -271,16 +271,26 @@ let render = (): void => {
 
     pickedIndex = -1
 
+    for (let pos of castles) {
+        let modelMat = m4Mul(m4Translate(pos as any), m4Scale(0.25))
+        G.useProgram(mainShader)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
+        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
+        bindTextureUniforms(mainShader)
+        modelGeoDraw(castleGeo, mainShader)
+    }
+
     if (showHandles) {
         G.disable(gl.DEPTH_TEST)
 
         G.useProgram(debugGeoShader)
         for (let i = 0; i < sourceList.length; ++i) {
             let line = sourceList[i]
-            if (line[1][0] !== 'box' && line[1][0] !== 'line') {
+            if (line[1][0] !== 'box' && line[1][0] !== 'line' && line[1][0] !== 'castle') {
                 continue;
             }
-            let pos = line[1].slice(2, 5).map((x: any) => parseInt(x)) as any as Vec3
+            let offset = line[1][0] === 'castle' ? 1 : 2
+            let pos = line[1].slice(offset, offset + 3).map((x: any) => parseInt(x)) as any as Vec3
             G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_vp'), false, vp)
             G.uniformMatrix4fv(G.getUniformLocation(debugGeoShader, 'u_model'), false, m4Translate(pos))
 
@@ -294,15 +304,6 @@ let render = (): void => {
             modelGeoDraw(handleGeo, debugGeoShader)
         }
         G.enable(gl.DEPTH_TEST)
-    }
-
-    for (let pos of castles) {
-        let modelMat = m4Mul(m4Translate(pos as any), m4Scale(0.25))
-        G.useProgram(mainShader)
-        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
-        G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_vp'), false, vp)
-        bindTextureUniforms(mainShader)
-        modelGeoDraw(castleGeo, mainShader)
     }
 
     if (showLines) {

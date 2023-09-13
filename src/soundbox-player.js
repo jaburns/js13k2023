@@ -710,6 +710,7 @@ export let playMusic = () => {
       var audio = document.createElement("audio");
       audio.src = URL.createObjectURL(new Blob([wave], {type: "audio/wav"}));
       audio.volume = 0.8
+        audio.loop=true
       audio.play();
     })
 }

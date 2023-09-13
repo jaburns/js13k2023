@@ -3,7 +3,7 @@ import { inputsAdd, inputsConsumeFrame, inputsNew } from './inputs'
 import { renderGame, resize } from './render'
 import { gameStateLerp, gameStateNew, gameStateTick } from './state'
 import { False, True } from './types'
-import { loadLevel } from './world'
+import { loadLevel, START_LEVEL } from './world'
 
 declare const CC: HTMLCanvasElement
 declare const EDITOR: boolean
@@ -66,5 +66,5 @@ if (EDITOR) {
 window.onresize = resize
 
 resize()
-loadLevel(0)
+loadLevel(START_LEVEL)
 frame(0)
