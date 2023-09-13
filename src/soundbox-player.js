@@ -34,7 +34,7 @@
 
 //
 // This music an the example track from the SoundBox player (https://sb.bitsnbites.eu/):
-//   Zebrain by esaruoho @ , from the 4k Matlab intro Zebrain
+//   Zebrain by esaruoho, from the 4k Matlab intro Zebrain
 //
 
     // This music has been exported by SoundBox. You can use it with

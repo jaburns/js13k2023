@@ -2,7 +2,7 @@ import * as gl from './glConsts'
 import { main_frag, main_vert, sky_frag, sky_vert, aimRay_frag, aimRay_vert, blit_frag, blit_vert } from "./shaders.gen"
 import { GameMode, GameState, predictShot } from "./state"
 import { lerp, m4AxisAngle, m4Ident, m4Mul, m4MulPoint, m4Perspective, m4RotX, m4RotY, m4Scale, m4Translate, Mat4, radLerp, v3Add, v3AddScale, v3Sub, Vec3, vecLerp } from "./types"
-import { cannonGeo, castleGeo, CastleGib, castleGibs, gibCastle, lastLevel, loadLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
+import { cannonGeo, castleGeo, CastleGib, castleGibs, gibCastle, hints, lastLevel, loadLevel, playerGeo, skyboxGeo, worldGetCastles, worldGetGeo } from "./world"
 import { bindTextureUniforms } from "./textures"
 import { ModelGeo } from "./csg"
 
@@ -143,7 +143,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
     }
 
     let lookVec = m4MulPoint(m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch)), [0,0,-state.camBack])
-    camOff = vecLerp(camOff, state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win ? [0,20,0] : [-50,60,0], 0.01 * dt)
+    camOff = vecLerp(camOff, state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win ? [0,20,0] : [-20,30,0], 0.01 * dt)
     ballRot = m4Mul(m4AxisAngle(state.rotAxis, state.rotSpeed * dt), ballRot)
     let lookMat = m4Mul(m4RotX(mainPitch), m4RotY(-mainYaw))
     let fwdLookMat = m4Mul(m4RotY(mainYaw), m4RotX(-mainPitch))
@@ -296,7 +296,11 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
             ctx.textAlign='right'
             drawText(state.ammo+" ⚫", C2.width -20, C2.height -25-2*40)
             drawText(`${state.castlesHit.length}/${worldGetCastles().length} 🏰`, C2.width -20, C2.height -25-40)
-            drawText(`${state.level+1}/${8/*lastLevel*/+1} ⛳`, C2.width -20, C2.height -25)
+            drawText(`${state.level+1}/${lastLevel+1} ⛳`, C2.width -20, C2.height -25)
+            ctx.textAlign='center'
+            ctx.font='bold 16px sans-serif'
+            ctx.lineWidth=.5
+            drawText(hints[state.level], C2.width/2, 25)
         }
     }
 

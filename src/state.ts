@@ -172,7 +172,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
         let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
         if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
             state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
-            state.vel = v3Reflect(state.vel, nearNorm, 0.8, 0.8)
+            state.vel = v3Reflect(state.vel, nearNorm, 0.2, 0.8)
         }
 
     } else if (state.mode == GameMode.Ball || state.mode == GameMode.Dead || state.mode == GameMode.Win) {
@@ -221,14 +221,15 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
         }
         state.pos = v3Add(state.pos, state.vel)
 
-        let [nearPos, nearNorm, nearDist] = worldNearestSurfacePoint(state.pos)!
+        let [nearPos, nearNorm, nearDist, tag] = worldNearestSurfacePoint(state.pos)!
         if (nearDist < k_ballRadius && v3Dot(nearNorm, state.vel) < 0) {
+            console.log('HIT TAG', tag)
             if (state.ungrounded > 10) {
                 zzfxP(sndGround)
             }
             state.ungrounded = 0
             state.pos = v3AddScale(nearPos, nearNorm, k_ballRadius)
-            state.vel = v3Reflect(state.vel, nearNorm, 0.2, 0.998)
+            state.vel = v3Reflect(state.vel, nearNorm, tag == 2 ? 0.9 : 0.2, 0.998)
             state.rotSpeed = v3Length(state.vel) / k_ballRadius / k_tickMillis
             state.rotAxis = v3Negate(v3Normalize(v3Cross(state.vel, nearNorm)))
         }

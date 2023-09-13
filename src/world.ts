@@ -73,20 +73,23 @@ export let gibCastle = (pos: Vec3, vel: Vec3): CastleGib[] => {
 // ------------------------------------------------------------------------------------
 // World models
 
-export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1283","0","20000","1500","20000","0","0","0","0"]],[0,["box","0","0","1200","0","200","1000","1000","0","0","0","200"]],[0,["sub"]],[0,[""]],[0,[""]],[0,["castle","0","30","1000"]],[0,[""]],[0,[""]]]
+//export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1283","0","20000","1500","20000","0","0","0","0"]],[0,["box","0","0","1200","0","200","1000","1000","0","0","0","200"]],[0,["sub"]],[0,[""]],[0,[""]],[0,["castle","0","30","1000"]],[0,[""]],[0,[""]]]
 let loadLevel0=()=>[csgSolidBake(csgSolidOpSubtract(csgSolidBox(0,0,-1283,0,20000,1500,20000,0,0,0,0),csgSolidBox(0,0,1200,0,200,1000,1000,0,0,0,200))),[[0,30,1000]]]
 
-//export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-891","1498","500","1000","2000","0","0","0","0"]],[0,["box","1","0","500","317","150","300","900","0","0","0","200"]],[0,["sub"]],[0,["box","6","0","-461","3875","450","1000","500","0","0","0","0"]],[0,["add"]],[0,[""]],[0,["castle","0","10","1000"]],[0,["castle","0","120","2000"]],[0,["castle","0","120","3000"]],[0,[""]]]
-let loadLevel1=()=>[csgSolidBake(csgSolidOpUnion(csgSolidOpSubtract(csgSolidBox(0,0,-891,1498,500,1000,2000,0,0,0,0),csgSolidBox(1,0,500,317,150,300,900,0,0,0,200)),csgSolidBox(6,0,-461,3875,450,1000,500,0,0,0,0))),[[0,10,1000],[0,120,2000],[0,120,3000]]]
+//export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-891","1498","500","1000","2000","0","0","0","0"]],[0,["box","1","0","500","317","150","300","900","0","0","0","200"]],[0,["sub"]],[0,["box","2","0","-461","3875","450","1000","500","0","0","0","0"]],[0,["add"]],[0,[""]],[0,["castle","0","10","1000"]],[0,["#castle","0","120","2000"]],[0,["castle","0","120","3000"]],[0,[""]]]
+let loadLevel1=()=>[csgSolidBake(csgSolidOpUnion(csgSolidOpSubtract(csgSolidBox(0,0,-891,1498,500,1000,2000,0,0,0,0),csgSolidBox(1,0,500,317,150,300,900,0,0,0,200)),csgSolidBox(2,0,-461,3875,450,1000,500,0,0,0,0))),[[0,10,1000],[0,120,3000]]]
 
-//export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1000","0","10000","1000","10000","0","0","0","0"]],[0,["box","1","0","200","0","1830","220","1120","0","0","0","200"]],[0,["sub"]],[0,["box","2","-1930","200","00","700","300","240","0","0","0","200"]],[0,["sub"]],[0,["box","1","-2690","-140","0","860","190","130","0","0","-10","0"]],[0,["add"]],[0,["line","2","2110","0","-1800","2000","800","400","45","90","0"]],[0,["sub"]],[0,[""]],[0,["castle","-2000","300","500"]],[0,["castle","-2000","300","-500"]]]
-let loadLevel2=()=>[csgSolidBake(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidBox(0,0,-1000,0,10000,1000,10000,0,0,0,0),csgSolidBox(1,0,200,0,1830,220,1120,0,0,0,200)),csgSolidBox(2,-1930,200,0,700,300,240,0,0,0,200)),csgSolidBox(1,-2690,-140,0,860,190,130,0,0,-10,0)),csgSolidLine(2,2110,0,-1800,2000,800,400,45,90,0))),[[-2000,300,500],[-2000,300,-500]]]
+export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1903","1498","2000","1000","2000","0","0","0","1000"]],[0,["box","1","0","500","317","150","300","900","0","0","0","200"]],[0,["sub"]],[0,["#box","2","0","-461","2375","1000","1000","1000","0","0","0","0"]],[0,["#box","2","0","-461","2175","900","1100","1100","0","0","0","0"]],[0,["#sub"]],[0,["#add"]],[0,["box","2","950","-461","2375","50","1000","1000","0","0","0","0"]],[0,["add"]],[0,["box","2","-950","-461","2375","50","1000","1000","0","0","0","0"]],[0,["add"]],[0,["box","2","0","-461","3342","50","1000","1000","90","0","0","0"]],[0,["add"]],[0,[""]],[0,["castle","500","140","3000"]],[0,["castle","-500","140","3000"]],[0,["castle","0","140","3000"]],[0,[""]]]
+let loadLevel2=()=>[csgSolidBake(csgSolidOpUnion(csgSolidOpUnion(csgSolidOpUnion(csgSolidOpSubtract(csgSolidBox(0,0,-1903,1498,2000,1000,2000,0,0,0,1000),csgSolidBox(1,0,500,317,150,300,900,0,0,0,200)),csgSolidBox(2,950,-461,2375,50,1000,1000,0,0,0,0)),csgSolidBox(2,-950,-461,2375,50,1000,1000,0,0,0,0)),csgSolidBox(2,0,-461,3342,50,1000,1000,90,0,0,0))),[[500,140,3000],[-500,140,3000],[0,140,3000]]]
 
 let levelLoaders = [
     loadLevel0,
     loadLevel1,
     loadLevel2,
 ]
+
+//export let worldSourceList:[number,string[]][]=[[0,["box","0","0","-1000","0","10000","1000","10000","0","0","0","0"]],[0,["box","1","0","200","0","1830","220","1120","0","0","0","200"]],[0,["sub"]],[0,["box","2","-1930","200","00","700","300","240","0","0","0","200"]],[0,["sub"]],[0,["box","1","-2690","-140","0","860","190","130","0","0","-10","0"]],[0,["add"]],[0,["line","2","2110","0","-1800","2000","800","400","45","90","0"]],[0,["sub"]],[0,[""]],[0,["castle","-2000","300","500"]],[0,["castle","-2000","300","-500"]]]
+//let loadLevel9=()=>[csgSolidBake(csgSolidOpSubtract(csgSolidOpUnion(csgSolidOpSubtract(csgSolidOpSubtract(csgSolidBox(0,0,-1000,0,10000,1000,10000,0,0,0,0),csgSolidBox(1,0,200,0,1830,220,1120,0,0,0,200)),csgSolidBox(2,-1930,200,0,700,300,240,0,0,0,200)),csgSolidBox(1,-2690,-140,0,860,190,130,0,0,-10,0)),csgSolidLine(2,2110,0,-1800,2000,800,400,45,90,0))),[[-2000,300,500],[-2000,300,-500]]]
 
 export let lastLevel = levelLoaders.length - 1
 
@@ -103,22 +106,28 @@ export let loadLevel = (i:number): void => {
 
 // ------------------------------------------------------------------------------------
 
+export let hints = [
+    'SMASH THE CASTLE',
+    'SMASH ALL THE CASTLES',
+    'RE-USE THE CANNON',
+]
+
 const eps = 0.001
 
 let worldSampleNormal = (pos: Vec3): Vec3 =>
     v3Normalize([
-        worldFn(v3Add(pos,[eps,0,0])) - worldFn(v3Sub(pos,[eps,0,0])),
-        worldFn(v3Add(pos,[0,eps,0])) - worldFn(v3Sub(pos,[0,eps,0])),
-        worldFn(v3Add(pos,[0,0,eps])) - worldFn(v3Sub(pos,[0,0,eps]))
+        worldFn(v3Add(pos,[eps,0,0]))[1] - worldFn(v3Sub(pos,[eps,0,0]))[1],
+        worldFn(v3Add(pos,[0,eps,0]))[1] - worldFn(v3Sub(pos,[0,eps,0]))[1],
+        worldFn(v3Add(pos,[0,0,eps]))[1] - worldFn(v3Sub(pos,[0,0,eps]))[1]
     ])
 
-export let worldNearestSurfacePoint = (pos: Vec3): [Vec3, Vec3, number] | undefined => {
-    for (let i = 0, marchPoint = pos, dist, norm; i < 50; ++i) {
-        dist = worldFn(marchPoint)
+export let worldNearestSurfacePoint = (pos: Vec3): [Vec3, Vec3, number, number] | undefined => {
+    for (let i = 0, marchPoint = pos, dist, tag, norm; i < 50; ++i) {
+        [tag, dist] = worldFn(marchPoint)
         norm = worldSampleNormal(marchPoint)
         if (dist < eps) {
             dist = v3Sub(pos, marchPoint)
-            return [marchPoint, v3Dot2(dist) < eps ? norm : v3Normalize(dist), v3Length(dist)]
+            return [marchPoint, v3Dot2(dist) < eps ? norm : v3Normalize(dist), v3Length(dist), tag]
         }
         marchPoint = v3AddScale(marchPoint, norm, -dist)
     }
@@ -128,7 +137,8 @@ export let worldNearestSurfacePoint = (pos: Vec3): [Vec3, Vec3, number] | undefi
 export let worldRaycast = (pos: Vec3, normalizedDir: Vec3, len: number): number  => {
     let i = 0, traveled = 0, marchPoint = pos, dist
     for (; i < 50 && traveled < len; ++i) {
-        traveled += (dist = worldFn(marchPoint))
+        dist = worldFn(marchPoint)[1]
+        traveled += dist
         if (dist < eps) {
             return traveled
         }

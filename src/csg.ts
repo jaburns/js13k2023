@@ -191,9 +191,12 @@ let csgNodeBuild = (me: CsgNode, polygons: CsgPolygon[]): void => {
 
 // ----------------------------------------------------------------------------
 
-const V_POSITION  = 'a'
-const F_BOX       = 'b'
-const F_LINE      = 'c'
+const V_POSITION  = '__a'
+const F_BOX       = '__b'
+const F_LINE      = '__c'
+const F_MIN       = '__d'
+const F_MAX       = '__e'
+const F_NEG       = '__f'
 
 export type CsgSolid = {
     polys: CsgPolygon[],
@@ -215,10 +218,10 @@ export let csgSolidOpUnion = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid => {
         polys: csgNodeAllPolygons(a),
         lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
                 .concat(solidB.lineViewPolys || solidB.polys.map(x => ((x as any).tag = 0,x))),
-        sdf: `Math.min(${solidA.sdf},${solidB.sdf})`,
+        sdf: `${F_MIN}(${solidA.sdf},${solidB.sdf})`,
     } : {
         polys: csgNodeAllPolygons(a),
-        sdf: `Math.min(${solidA.sdf},${solidB.sdf})`,
+        sdf: `${F_MIN}(${solidA.sdf},${solidB.sdf})`,
     }
 }
 
@@ -238,10 +241,10 @@ export let csgSolidOpSubtract = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid =
         polys: csgNodeAllPolygons(a),
         lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
                 .concat((solidB.lineViewPolys || solidB.polys).map(x => ((x as any).tag = 1,x))),
-        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
+        sdf: `${F_MAX}(${solidA.sdf},${F_NEG}(${solidB.sdf}))`,
     } : {
         polys: csgNodeAllPolygons(a),
-        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
+        sdf: `${F_MAX}(${solidA.sdf},${F_NEG}(${solidB.sdf}))`,
     }
 }
 
@@ -260,10 +263,10 @@ export let csgSolidOpIntersect = (solidA: CsgSolid, solidB: CsgSolid): CsgSolid 
         polys: csgNodeAllPolygons(a),
         lineViewPolys: (solidA.lineViewPolys || solidA.polys.map(x => ((x as any).tag = 0,x)))
                 .concat((solidB.lineViewPolys || solidB.polys).map(x => ((x as any).tag = 1,x))),
-        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
+        sdf: ''
     } : {
         polys: csgNodeAllPolygons(a),
-        sdf: `Math.max(${solidA.sdf},-${solidB.sdf})`,
+        sdf: ''
     }
 }
 
@@ -293,7 +296,8 @@ export let csgSolidLine = (
     h: number, r0: number, r1: number,
     yaw: number, pitch: number, roll: number,
 ): CsgSolid => {
-    const resolution = 4 // TODO resolution should be function of max(r0,r1)
+    let maxRad = Math.max(r0, r1)
+    let resolution = Math.max(4,Math.round(maxRad/200))
 
     let polys: CsgPolygon[] = []
     sphereVertexCenter = [cx,cy,cz]
@@ -355,7 +359,7 @@ export let csgSolidLine = (
 
     return {
         polys,
-        sdf: `${F_LINE}(${V_POSITION},[${cx},${cy},${cz}],${h},${r0},${r1},${yaw},${pitch},${roll})`,
+        sdf: `${F_LINE}(${tag},${V_POSITION},[${cx},${cy},${cz}],${h},${r0},${r1},${yaw},${pitch},${roll})`,
     }
 }
 
@@ -366,7 +370,7 @@ export let csgSolidBox = (
     yaw: number, pitch: number, roll: number,
     radius: number
 ): CsgSolid => {
-    const resolution = 4 // TODO resolution should be function of radius
+    let resolution = Math.max(4,Math.round(radius/200))
 
     let polys: CsgPolygon[] = []
     rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
@@ -454,25 +458,27 @@ export let csgSolidBox = (
 
     return {
         polys,
-        sdf: `${F_BOX}(${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}],${yaw},${pitch},${roll},${radius})`
+        sdf: `${F_BOX}(${tag},${V_POSITION},[${cx},${cy},${cz}],[${rx},${ry},${rz}],${yaw},${pitch},${roll},${radius})`
     }
 }
 
+type SdfValue = [number,number] // tag,distance
+
 let sdfBox = (
-    p: Vec3, center: Vec3,
+    tag: number, p: Vec3, center: Vec3,
     extents: Vec3,
     yaw: number, pitch: number, roll: number,
     radius: number
-): number => (
+): SdfValue => (
     v3Scratch = v3Sub(v3Abs(m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))), extents),
-    v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0) - radius
+    [tag, v3Length(v3Max(v3Scratch, [0,0,0])) + Math.min(Math.max(...v3Scratch), 0) - radius]
 )
 
 let sdfLine = (
-    p: Vec3, center: Vec3,
+    tag: number, p: Vec3, center: Vec3,
     h: number, r0: number, r1: number,
     yaw: number, pitch: number, roll: number
-): number => {
+): SdfValue => {
     v3Scratch = m4MulPoint(m4Mul(m4Mul(m4RotZ(-roll/180*Math.PI), m4RotX(-pitch/180*Math.PI)), m4RotY(-yaw/180*Math.PI)), v3Sub(p, center))
 
     let b = (r0-r1)/h
@@ -480,12 +486,16 @@ let sdfLine = (
     let q: Vec3 = [v3Length([v3Scratch[0],v3Scratch[2],0]),v3Scratch[1],0]
     let k = v3Dot(q,[-b,a,0])
 
-    return k<0.0 ? v3Length(q) - r0 :
+    return [tag, k<0.0 ? v3Length(q) - r0 :
         k>a*h ? v3Length(v3Sub(q,[0,h,0])) - r1 :
-        v3Dot(q, [a,b,0]) - r0
+        v3Dot(q, [a,b,0]) - r0]
 }
 
-export type SdfFunction = (pos: Vec3) => number
+let sdfMin = (a: SdfValue, b: SdfValue): SdfValue => a[1] <= b[1] ? a : b
+let sdfMax = (a: SdfValue, b: SdfValue): SdfValue => a[1] > b[1] ? a : b
+let sdfNeg = (a: SdfValue): SdfValue => [a[0], -a[1]]
+
+export type SdfFunction = (pos: Vec3) => SdfValue
 
 export type ModelLines = {
     indexBuffer: WebGLBuffer,
@@ -515,11 +525,11 @@ export let csgSolidBake = (me: CsgSolid): [ModelGeo, SdfFunction] => {
     let linesTagBuf: number[] = []
 
     let innerSdfFunc = new Function(
-        `${V_POSITION},${F_BOX},${F_LINE}`,
+        `${V_POSITION},${F_BOX},${F_LINE},${F_MIN},${F_MAX},${F_NEG}`,
         'return ' + me.sdf
     )
-    let sdfFunc = (x: Vec3): number => innerSdfFunc(
-        x, sdfBox, sdfLine
+    let sdfFunc = (x: Vec3): SdfValue => innerSdfFunc(
+        x, sdfBox, sdfLine, sdfMin, sdfMax, sdfNeg
     )
 
     me.polys.map(poly => {
