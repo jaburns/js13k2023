@@ -45,7 +45,7 @@ export let gameStateNew = (): GameState => ({
     lockView: False,
     yaw: Math.PI,
     pitch: 0,
-    pos: [0,0,0],
+    pos: [0,k_ballRadius,0],
     vel: [0,0,0],
     rotSpeed: 0,
     rotAxis: [0,0,0],
@@ -123,7 +123,7 @@ export let gameStateTick = (prevState: Readonly<GameState>, inputs: InputsFrame)
     state.ungrounded++
 
     if (state.mode != GameMode.Menu && state.mode != GameMode.Dead && state.mode != GameMode.Win) {
-        state.lockView = (inputs.keysDown[2] && (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim)) as any
+        // state.lockView = (inputs.keysDown[2] && (state.mode == GameMode.FirstAim || state.mode == GameMode.LaterAim)) as any
         state.yaw += inputs.mouseAccX * k_mouseSensitivity
         state.pitch += inputs.mouseAccY * k_mouseSensitivity
         state.pitch = Math.max(-1.57, Math.min(1.57, state.pitch))

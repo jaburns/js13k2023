@@ -169,7 +169,13 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
         drawCannon = 1
     }
 
-    if (drawCannon) {
+    if (drawCannon || state.mode == GameMode.Menu) {
+        if (state.mode == GameMode.Menu) {
+            lazyYaw = 1
+            lazyPitch = -.5
+            cannonPos = state.pos
+        }
+
         modelMat = m4Mul(m4Mul(m4Translate(cannonPos), m4Mul(m4RotY(lazyYaw), m4RotX(-lazyPitch))), m4Scale(0.12))
         G.useProgram(mainShader)
         G.uniformMatrix4fv(G.getUniformLocation(mainShader, 'u_model'), false, modelMat)
@@ -280,8 +286,7 @@ export let renderGame = (earlyInputs: {mouseAccX: number, mouseAccY: number}, st
             drawText("CANNONBOLF", C2.width/2, 200)
             ctx.font='bold 16px sans-serif'
             ctx.lineWidth=.5
-            drawText("CLICK TO USE CANNON", C2.width/2, C2.height - 100)
-            drawText("RIGHT CLICK TO LOCK CAMERA", C2.width/2, C2.height - 100 + 20)
+            drawText("CLICK TO START", C2.width/2, C2.height - 100)
         } else if (state.mode == GameMode.Dead || state.mode == GameMode.Win) {
             ctx.font='bold 32px sans-serif'
             ctx.lineWidth=2
