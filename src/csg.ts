@@ -296,8 +296,8 @@ export let csgSolidLine = (
     h: number, r0: number, r1: number,
     yaw: number, pitch: number, roll: number,
 ): CsgSolid => {
-    let maxRad = Math.max(r0, r1)
-    let resolution = Math.max(4,Math.round(maxRad/200))
+    //let maxRad = Math.max(r0, r1)
+    let resolution = 4//Math.max(4,Math.round(maxRad/200))
 
     let polys: CsgPolygon[] = []
     sphereVertexCenter = [cx,cy,cz]
@@ -370,7 +370,7 @@ export let csgSolidBox = (
     yaw: number, pitch: number, roll: number,
     radius: number
 ): CsgSolid => {
-    let resolution = Math.max(4,Math.round(radius/200))
+    let resolution = Math.max(4,Math.round(radius/100))
 
     let polys: CsgPolygon[] = []
     rot = m4Mul(m4Mul(m4RotY(yaw/180*Math.PI), m4RotX(pitch/180*Math.PI)), m4RotZ(roll/180*Math.PI))
